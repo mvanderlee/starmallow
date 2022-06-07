@@ -1,6 +1,7 @@
 import asyncio
 import datetime as dt
 import inspect
+import logging
 import uuid
 from dataclasses import dataclass, field
 from decimal import Decimal
@@ -45,6 +46,8 @@ from starmallow.utils import (
     is_optional,
 )
 
+logger = logging.getLogger(__name__)
+
 PY_TO_MF_MAPPING = {
     int: mf.Integer,
     float: mf.Float,
@@ -63,11 +66,11 @@ class SchemaModel(ma.Schema):
     def __init__(
         self,
         schema: ma.Schema,
-        missing: Any = Undefined,
+        load_default: Any = Undefined,
         required: bool = True,
     ) -> None:
         self.schema = schema
-        self.missing = missing
+        self.load_default = load_default
         self.required = required
 
     def load(
@@ -99,6 +102,7 @@ class EndpointModel:
     form_params: Optional[Dict[str, Form]] = field(default_factory=list)
     name: Optional[str] = None
     path: Optional[str] = None
+    methods: Optional[List[str]] = None
     call: Optional[Callable[..., Any]] = None
     response_model: Optional[ma.Schema] = None
     response_class: Type[Response] = JSONResponse
@@ -283,7 +287,7 @@ class EndpointMixin:
         }
         if is_optional(parameter.annotation):
             kwargs = {
-                'missing': None,
+                'load_default': None,
                 'required': False,
             }
             # This does not support Union[A,B,C,None]. Only Union[A,None] and Optional[A]
@@ -294,7 +298,7 @@ class EndpointMixin:
             # Although it's best practice to also mark the typehint as Optional
             if parameter.default.default != Ellipsis:
                 kwargs = {
-                    'missing': parameter.default.default,
+                    'load_default': parameter.default.default,
                     'required': False,
                 }
 
@@ -312,7 +316,16 @@ class EndpointMixin:
             # return model()
             return SchemaModel(model(), **kwargs)
         elif is_marshmallow_field(model):
-            return model(**kwargs)
+            # TODO: bit noisy and expected to trigger nearly always
+            # if model.required != kwargs['required']:
+            #     logger.warning(f"'{parameter.name}' model and annotation have different 'required' values. {model.required} <> {kwargs['required']}")
+            if model.load_default is not None and model.load_default != kwargs.get('load_default', ma.missing):
+                logger.warning(f"'{parameter.name}' model and annotation have different 'load_default' values. {model.load_default} <> {kwargs.get('load_default', ma.missing)}")
+
+            model.required = kwargs['required']
+            model.load_default = kwargs.get('load_default', ma.missing)
+
+            return model
         elif model in PY_TO_MF_MAPPING:
             return PY_TO_MF_MAPPING[model](**kwargs)
         else:
@@ -335,7 +348,7 @@ class EndpointMixin:
                     model=model,
                 )
             elif isinstance(model, mf.Field):
-                # If marshmallow field with now FieldInfo, default to QueryParameter
+                # If marshmallow field with no Param defined, default it to QueryParameter
                 field_info = Query(
                     # If a default was provided, honor it.
                     ... if parameter.default == inspect._empty else parameter.default,
@@ -344,6 +357,7 @@ class EndpointMixin:
                     model=model,
                 )
             else:
+                # Default all others to body params
                 field_info = Body(..., deprecated=False, include_in_schema=True, model=model)
 
             params[field_info.in_][name] = field_info
@@ -355,6 +369,7 @@ class EndpointMixin:
         path: str,
         endpoint: Callable[..., Any],
         name: Optional[str] = None,
+        methods: Optional[List[str]] = None,
 
         status_code: Optional[int] = None,
         response_model: Optional[ma.Schema] = None,
@@ -373,6 +388,7 @@ class EndpointMixin:
         return EndpointModel(
             path=path,
             name=name,
+            methods=methods,
             call=endpoint,
             path_params=params[ParamType.path],
             query_params=params[ParamType.query],
@@ -442,16 +458,17 @@ class APIRoute(routing.Route, EndpointMixin):
                 status_code not in STATUS_CODES_WITH_NO_BODY
             ), f"Status code {status_code} must not have a response body"
 
-        endpoint_model = self.get_endpoint_model(
+        self.endpoint_model = self.get_endpoint_model(
             path,
             endpoint,
             name=name,
+            methods=self.methods,
             status_code=status_code,
             response_model=response_model,
             response_class=response_class,
         )
 
-        self.app = request_response(get_request_handler(endpoint_model))
+        self.app = request_response(get_request_handler(self.endpoint_model))
 
 
 class APIRouter(routing.Router):

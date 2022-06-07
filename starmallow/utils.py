@@ -2,8 +2,9 @@ import inspect
 import re
 import warnings
 from dataclasses import is_dataclass
-from typing import TYPE_CHECKING, Generic, Union
+from typing import TYPE_CHECKING, Any, Dict, Generic, Union
 
+import dpath.util
 import marshmallow as ma
 import marshmallow.fields as mf
 
@@ -61,3 +62,22 @@ def is_marshmallow_field(obj):
 
 def is_marshmallow_dataclass(obj):
     return is_dataclass(obj) and hasattr(obj, 'Schema') and is_marshmallow_schema(obj.Schema)
+
+
+def __dict_creator__(current, segments, i, hints=()):
+    '''
+    Create missing path components. Always create a dictionary.
+
+    set(obj, segments, value) -> obj
+    '''
+    segment = segments[i]
+
+    # Infer the type from the hints provided.
+    if i < len(hints):
+        current[segment] = hints[i][1]()
+    else:
+        current[segment] = {}
+
+
+def dict_safe_add(d: Dict, path: str, value: Any):
+    dpath.util.new(d, path, value, separator='.', creator=__dict_creator__)

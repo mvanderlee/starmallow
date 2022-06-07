@@ -27,6 +27,7 @@ from starmallow.exception_handlers import (
 )
 from starmallow.exceptions import RequestValidationError
 from starmallow.routing import APIRoute, APIRouter
+from starmallow.schema_generator import SchemaGenerator
 from starmallow.types import DecoratedCallable
 from starmallow.utils import generate_unique_id
 
@@ -48,6 +49,15 @@ class StarMallow(Starlette):
         on_startup: Optional[Sequence[Callable[[], Any]]] = None,
         on_shutdown: Optional[Sequence[Callable[[], Any]]] = None,
         lifespan: Callable[[Starlette], AsyncContextManager] = None,
+
+        title: str = "FastAPI",
+        description: str = "",
+        version: str = "0.1.0",
+        openapi_url: Optional[str] = "/openapi.json",
+        openapi_tags: Optional[List[Dict[str, Any]]] = None,
+        docs_url: Optional[str] = "/docs",
+        redoc_url: Optional[str] = "/redoc",
+
         **kwargs,
     ) -> None:
         # The lifespan context function is a newer style that replaces
@@ -57,6 +67,20 @@ class StarMallow(Starlette):
         ), "Use either 'lifespan' or 'on_startup'/'on_shutdown', not both."
 
         self._debug = debug
+        self.title = title
+        self.description = description
+        self.version = version
+        self.openapi_url = openapi_url
+        self.openapi_tags = openapi_tags
+        self.openapi_version = "3.0.2"
+        self.openapi_schema: Optional[Dict[str, Any]] = None
+        self.docs_url = docs_url
+        self.redoc_url = redoc_url
+
+        if self.openapi_url:
+            assert self.title, "A title must be provided for OpenAPI, e.g.: 'My API'"
+            assert self.version, "A version must be provided for OpenAPI, e.g.: '2.1.0'"
+
         self.state = State()
         self.router: APIRouter = APIRouter(
             routes=routes,
@@ -74,6 +98,30 @@ class StarMallow(Starlette):
 
         self.user_middleware = [] if middleware is None else list(middleware)
         self.middleware_stack = self.build_middleware_stack()
+        self.init_openapi()
+
+    def openapi(self) -> Dict[str, Any]:
+        if not self.openapi_schema:
+            self.openapi_schema = SchemaGenerator(
+                self.title,
+                self.version,
+                self.description,
+                self.openapi_version,
+            ).get_schema(self.routes)
+        return self.openapi_schema
+
+    def init_openapi(self):
+        if self.openapi_url:
+            async def openapi(req: Request) -> JSONResponse:
+                return JSONResponse(self.openapi())
+
+            self.add_route(self.openapi_url, openapi, include_in_schema=False)
+
+        if self.openapi_url and self.docs_url:
+            pass
+
+        if self.openapi_url and self.redoc_url:
+            pass
 
     def add_api_route(
         self,

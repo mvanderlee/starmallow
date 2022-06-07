@@ -25,6 +25,7 @@ setup(
     include_package_data=True,
     install_requires=[
         'apispec[marshmallow]>=5.1,<6',
+        'dpath>=2.0.6,<3',
         "marshmallow>=3.11.0,<4",
         "marshmallow-dataclass>=8.3.1,<9",
         "python-multipart >=0.0.5,<0.0.6",
