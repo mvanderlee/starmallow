@@ -16,6 +16,9 @@ from starmallow.utils import dict_safe_add
 
 
 class SchemaRegistry(dict):
+    '''
+        Dict that holds all the schemas for each class and lazily resolves them.
+    '''
     def __init__(self, spec: APISpec, resolver: SchemaResolver, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.spec = spec
@@ -42,6 +45,7 @@ class SchemaRegistry(dict):
 
 
 class SchemaGenerator(BaseSchemaGenerator):
+    '''OpenApi Schema generator'''
 
     def __init__(
         self,
@@ -111,7 +115,11 @@ class SchemaGenerator(BaseSchemaGenerator):
         schema: Dict,
     ):
         schema["parameters"] = [
-            self.converter._field2parameter(field.model, name=name, location=field.in_.name)
+            self.converter._field2parameter(
+                field.model.to_nested() if isinstance(field.model, SchemaModel) else field.model,
+                name=name,
+                location=field.in_.name,
+            )
             for name, field in itertools.chain(
                 endpoint.query_params.items(),
                 endpoint.path_params.items(),
@@ -135,13 +143,24 @@ class SchemaGenerator(BaseSchemaGenerator):
         # Otherwise, loop over all body params and build a new schema from the key value pairs.
         # This mimic's FastApi's behaviour: https://fastapi.tiangolo.com/tutorial/body-multiple-params/#multiple-body-parameters
         else:
-            endpoint_schema = {}
+            required_properties = []
+            endpoint_properties = {}
+            endpoint_schema = {
+                "type": "object",
+                "properties": endpoint_properties,
+                "required": required_properties,
+            }
             for name, value in endpoint.body_params.items():
                 if value.include_in_schema:
                     if isinstance(value.model, ma.Schema):
-                        endpoint_schema[name] = self.schemas[value.model]
+                        endpoint_properties[name] = self.schemas[value.model]
+                        if isinstance(value.model, SchemaModel) and value.model.required:
+                            required_properties.append(name)
+
                     elif isinstance(value.model, mf.Field):
-                        endpoint_schema[name] = self.converter._field2parameter(value.model, name=name, location=value.in_.name)
+                        endpoint_properties[name] = self.converter.field2property(value.model)
+                        if value.model.required:
+                            required_properties.append(name)
 
         if endpoint_schema:
             dict_safe_add(
@@ -175,6 +194,9 @@ class SchemaGenerator(BaseSchemaGenerator):
         self,
         endpoint: EndpointModel,
     ) -> Dict[str, Any]:
+        '''
+            Generates the endpoint schema
+        '''
         schema = self.parse_docstring(endpoint.call)
 
         # Query, Path, and Header parameters
@@ -203,6 +225,9 @@ class SchemaGenerator(BaseSchemaGenerator):
         self,
         routes: List[APIRoute],
     ) -> Dict[str, Any]:
+        '''
+            Generates the schemas for the specified routes..
+        '''
         endpoints_info = self.get_endpoints(routes)
 
         for path, endpoints in endpoints_info.items():
@@ -212,7 +237,8 @@ class SchemaGenerator(BaseSchemaGenerator):
                     method.lower(): self.get_endpoint_schema(e)
                     for e in endpoints
                     for method in e.methods
-                }
+                    if method != 'HEAD'
+                },
             )
 
         return self.spec.to_dict()

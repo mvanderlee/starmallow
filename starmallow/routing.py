@@ -24,6 +24,7 @@ from typing import (
 import marshmallow as ma
 import marshmallow.fields as mf
 from marshmallow.error_store import ErrorStore
+from marshmallow.utils import missing as missing_
 from starlette import routing
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import FormData, Headers, QueryParams
@@ -37,7 +38,6 @@ from starmallow.exceptions import RequestValidationError
 from starmallow.params import Body, Cookie, Form, Header, Param, ParamType, Path, Query
 from starmallow.types import DecoratedCallable
 from starmallow.utils import (
-    Undefined,
     generate_unique_id,
     get_args,
     is_marshmallow_dataclass,
@@ -66,12 +66,19 @@ class SchemaModel(ma.Schema):
     def __init__(
         self,
         schema: ma.Schema,
-        load_default: Any = Undefined,
+        load_default: Any = missing_,
         required: bool = True,
     ) -> None:
         self.schema = schema
         self.load_default = load_default
         self.required = required
+
+    def to_nested(self):
+        return mf.Nested(
+            self.schema,
+            required=self.required,
+            load_default=self.load_default,
+        )
 
     def load(
         self,
@@ -84,12 +91,10 @@ class SchemaModel(ma.Schema):
         partial: Optional[bool] = None,
         unknown: Optional[str] = None,
     ) -> Any:
-        try:
-            result = self.schema.load(data, many=many, partial=partial, unknown=unknown)
-        except Exception as e:
-            raise e
+        if not data and self.load_default:
+            return self.load_default
 
-        return result
+        return self.schema.load(data, many=many, partial=partial, unknown=unknown)
 
 
 @dataclass
@@ -123,7 +128,7 @@ async def get_body(
             else:
                 body_bytes = await request.body()
                 if body_bytes:
-                    json_body: Any = Undefined
+                    json_body: Any = missing_
                     content_type_value: str = request.headers.get("content-type")
                     if not content_type_value:
                         json_body = await request.json()
@@ -132,7 +137,7 @@ async def get_body(
                         if main_type == "application":
                             if sub_type == "json" or sub_type.endswith("+json"):
                                 json_body = await request.json()
-                    if json_body != Undefined:
+                    if json_body != missing_:
                         body = json_body
                     else:
                         body = body_bytes
@@ -140,13 +145,14 @@ async def get_body(
         return body
     except Exception as e:
         raise HTTPException(
-            status_code=400, detail="There was an error parsing the body"
+            status_code=400, detail="There was an error parsing the body",
         ) from e
 
 
 def request_params_to_args(
     received_params: Union[Mapping[str, Any], QueryParams, Headers],
     endpoint_params: Dict[str, Param],
+    ignore_namespace: bool = True,
 ) -> Tuple[Dict[str, Any], ErrorStore]:
     values = {}
     error_store = ErrorStore()
@@ -163,8 +169,11 @@ def request_params_to_args(
                 error_store.store_error(error.messages, field_name)
         elif isinstance(param.model, ma.Schema):
             try:
-                # Load model from entire params
-                values[field_name] = param.model.load(received_params, unknown=ma.EXCLUDE)
+                if ignore_namespace:
+                    # Load model from entire params
+                    values[field_name] = param.model.load(received_params, unknown=ma.EXCLUDE)
+                else:
+                    values[field_name] = param.model.load(received_params.get(field_name, ma.missing), unknown=ma.EXCLUDE)
             except ma.ValidationError as error:
                 error_store.store_error(error.messages)
         else:
@@ -201,11 +210,17 @@ async def get_request_args(
         form_values, form_errors = request_params_to_args(
             body if body is not None and isinstance(body, FormData) else {},
             endpoint_model.form_params,
+            # If there is only one parameter defined, then don't namespace by the parameter name
+            # Otherwise we honor the namespace: https://fastapi.tiangolo.com/tutorial/body-multiple-params/
+            ignore_namespace=len(endpoint_model.form_params) == 1,
         )
     if endpoint_model.body_params:
         json_values, json_errors = request_params_to_args(
             body if body is not None and isinstance(body, Mapping) else {},
             endpoint_model.body_params,
+            # If there is only one parameter defined, then don't namespace by the parameter name
+            # Otherwise we honor the namespace: https://fastapi.tiangolo.com/tutorial/body-multiple-params/
+            ignore_namespace=len(endpoint_model.body_params) == 1,
         )
 
     values = {
@@ -305,20 +320,20 @@ class EndpointMixin:
             # Ignore type hint. Use provided model instead.
             if parameter.default.model is not None:
                 model = parameter.default.model
+        elif parameter.default != inspect._empty:
+            # If default is not a Param but is defined, then it's optional regardless of the typehint.
+            # Although it's best practice to also mark the typehint as Optional
+            kwargs = kwargs = {
+                'load_default': parameter.default,
+                'required': False,
+            }
 
         if is_marshmallow_dataclass(model):
             model = model.Schema
 
         if is_marshmallow_schema(model):
-            # # Wrap in Nested so that we can apply required and missing
-            # return mf.Nested(model(), **kwargs)
-            # TODO: Handle default value?
-            # return model()
             return SchemaModel(model(), **kwargs)
         elif is_marshmallow_field(model):
-            # TODO: bit noisy and expected to trigger nearly always
-            # if model.required != kwargs['required']:
-            #     logger.warning(f"'{parameter.name}' model and annotation have different 'required' values. {model.required} <> {kwargs['required']}")
             if model.load_default is not None and model.load_default != kwargs.get('load_default', ma.missing):
                 logger.warning(f"'{parameter.name}' model and annotation have different 'load_default' values. {model.load_default} <> {kwargs.get('load_default', ma.missing)}")
 

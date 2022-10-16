@@ -52,7 +52,7 @@ def put_item2(
 client = TestClient(app)
 
 openapi_schema = {
-    'info': {'description': '', 'title': 'FastAPI', 'version': '0.1.0'},
+    'info': {'description': '', 'title': 'StarMallow', 'version': '0.1.0'},
     'openapi': '3.0.2',
     'components': {
         'schemas': {
@@ -182,12 +182,6 @@ openapi_schema = {
                             'minimum': 0,
                             'type': 'integer',
                         },
-                    },
-                    {
-                        'in': 'query',
-                        'name': 'weight',
-                        'required': True,
-                        'schema': {'type': 'number'},
                     },
                     {
                         'in': 'path',

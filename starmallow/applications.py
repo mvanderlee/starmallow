@@ -1,3 +1,5 @@
+import os
+from string import Template
 from typing import (
     Any,
     AsyncContextManager,
@@ -18,9 +20,11 @@ from starlette.datastructures import State
 from starlette.exceptions import HTTPException
 from starlette.middleware import Middleware
 from starlette.requests import Request
-from starlette.responses import JSONResponse, Response
+from starlette.responses import HTMLResponse, JSONResponse, Response
 from starlette.routing import BaseRoute
+from starlette.types import Receive, Scope, Send
 
+from starmallow.docs import get_redoc_html, get_swagger_ui_html, get_swagger_ui_oauth2_redirect_html
 from starmallow.exception_handlers import (
     http_exception_handler,
     request_validation_exception_handler,
@@ -50,13 +54,17 @@ class StarMallow(Starlette):
         on_shutdown: Optional[Sequence[Callable[[], Any]]] = None,
         lifespan: Callable[[Starlette], AsyncContextManager] = None,
 
-        title: str = "FastAPI",
+        title: str = "StarMallow",
         description: str = "",
         version: str = "0.1.0",
+        root_path: str = "",
         openapi_url: Optional[str] = "/openapi.json",
         openapi_tags: Optional[List[Dict[str, Any]]] = None,
         docs_url: Optional[str] = "/docs",
         redoc_url: Optional[str] = "/redoc",
+        swagger_ui_oauth2_redirect_url: Optional[str] = "/docs/oauth2-redirect",
+        swagger_ui_init_oauth: Optional[Dict[str, Any]] = None,
+        swagger_ui_parameters: Optional[Dict[str, Any]] = None,
 
         **kwargs,
     ) -> None:
@@ -70,12 +78,16 @@ class StarMallow(Starlette):
         self.title = title
         self.description = description
         self.version = version
+        self.root_path = root_path
         self.openapi_url = openapi_url
         self.openapi_tags = openapi_tags
         self.openapi_version = "3.0.2"
         self.openapi_schema: Optional[Dict[str, Any]] = None
         self.docs_url = docs_url
         self.redoc_url = redoc_url
+        self.swagger_ui_oauth2_redirect_url = swagger_ui_oauth2_redirect_url
+        self.swagger_ui_init_oauth = swagger_ui_init_oauth
+        self.swagger_ui_parameters = swagger_ui_parameters
 
         if self.openapi_url:
             assert self.title, "A title must be provided for OpenAPI, e.g.: 'My API'"
@@ -118,10 +130,65 @@ class StarMallow(Starlette):
             self.add_route(self.openapi_url, openapi, include_in_schema=False)
 
         if self.openapi_url and self.docs_url:
-            pass
+            async def swagger_ui_html(req: Request) -> HTMLResponse:
+                root_path = req.scope.get("root_path", "").rstrip("/")
+                openapi_url = root_path + self.openapi_url
+                oauth2_redirect_url = self.swagger_ui_oauth2_redirect_url
+                if oauth2_redirect_url:
+                    oauth2_redirect_url = root_path + oauth2_redirect_url
+                return get_swagger_ui_html(
+                    openapi_url=openapi_url,
+                    title=self.title + " - Swagger UI",
+                    oauth2_redirect_url=oauth2_redirect_url,
+                    init_oauth=self.swagger_ui_init_oauth,
+                    swagger_ui_parameters=self.swagger_ui_parameters,
+                )
+
+            self.add_route(self.docs_url, swagger_ui_html, include_in_schema=False)
+
+            if self.swagger_ui_oauth2_redirect_url:
+
+                async def swagger_ui_redirect(req: Request) -> HTMLResponse:
+                    return get_swagger_ui_oauth2_redirect_html()
+
+                self.add_route(
+                    self.swagger_ui_oauth2_redirect_url,
+                    swagger_ui_redirect,
+                    include_in_schema=False,
+                )
 
         if self.openapi_url and self.redoc_url:
-            pass
+            async def redoc_html(req: Request) -> HTMLResponse:
+                root_path = req.scope.get("root_path", "").rstrip("/")
+                openapi_url = root_path + self.openapi_url
+                return get_redoc_html(
+                    openapi_url=openapi_url, title=self.title + " - ReDoc"
+                )
+
+            self.add_route(self.redoc_url, redoc_html, include_in_schema=False)
+
+    def add_docs_route(self):
+        def swagger_ui() -> HTMLResponse:
+            with open(os.path.join(os.path.dirname(__file__), "templates/swagger_ui.html")) as f:
+                content = Template(f.read()).substitute(title=self.title, schema_url=self.schema_url)
+
+            return HTMLResponse(content)
+
+        self.add_route(path=self.docs_url, route=swagger_ui, methods=["GET"], include_in_schema=False)
+
+    def add_redoc_route(self):
+        def redoc() -> HTMLResponse:
+            with open(os.path.join(os.path.dirname(__file__), "templates/redoc.html")) as f:
+                content = Template(f.read()).substitute(title=self.title, schema_url=self.schema_url)
+
+            return HTMLResponse(content)
+
+        self.add_route(path=self.redoc_url, route=redoc, methods=["GET"], include_in_schema=False)
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if self.root_path:
+            scope["root_path"] = self.root_path
+        await super().__call__(scope, receive, send)
 
     def add_api_route(
         self,
