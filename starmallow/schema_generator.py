@@ -1,18 +1,104 @@
 import inspect
 import itertools
+import warnings
 from collections import defaultdict
-from typing import Any, Dict, List, Sequence
+from typing import Any, Dict, List, Sequence, Set
 
 import marshmallow as ma
 import marshmallow.fields as mf
+import marshmallow_dataclass.collection_field as collection_field
 from apispec import APISpec
 from apispec.ext.marshmallow import MarshmallowPlugin, SchemaResolver
+from apispec.ext.marshmallow.field_converter import (
+    FieldConverterMixin,
+    make_min_max_attributes,
+    make_type_list,
+)
+from apispec.ext.marshmallow.openapi import OpenAPIConverter
 from starlette.routing import BaseRoute, Mount, compile_path
 from starlette.schemas import BaseSchemaGenerator
 
-from starmallow.responses import APIError
+from starmallow.responses import HTTPValidationError
 from starmallow.routing import APIRoute, EndpointModel, SchemaModel
 from starmallow.utils import dict_safe_add
+
+
+# Overriding to add exclusiveMinimum and exclusiveMaximum support
+def field2range(self: FieldConverterMixin, field: mf.Field, ret) -> dict:
+    """Return the dictionary of OpenAPI field attributes for a set of
+    :class:`Range <marshmallow.validators.Range>` validators.
+
+    :param Field field: A marshmallow field.
+    :rtype: dict
+    """
+    validators = [
+        validator
+        for validator in field.validators
+        if (
+            hasattr(validator, "min")
+            and hasattr(validator, "max")
+            and not hasattr(validator, "equal")
+        )
+    ]
+
+    x_prefix = not set(make_type_list(ret.get("type"))) & {"number", "integer"}
+
+    min_attr = (
+        'x-minimum'
+        if x_prefix
+        else (
+            'exclusiveMinimum'
+            if any(not getattr(validator, 'min_inclusive') for validator in validators)
+            else 'minimum'
+        )
+    )
+    max_attr = (
+        'x-maximum'
+        if x_prefix
+        else (
+            'exclusiveMaximum'
+            if any(not getattr(validator, 'max_inclusive') for validator in validators)
+            else 'maximum'
+        )
+    )
+    return make_min_max_attributes(validators, min_attr, max_attr)
+
+
+def field2type_and_format(
+    self: FieldConverterMixin, field: mf.Field, **kwargs: Any
+) -> dict:
+    """Return the dictionary of OpenAPI type and format based on the field type.
+
+    :param Field field: A marshmallow field.
+    :rtype: dict
+    """
+    ret = {}
+
+    # If this type isn't directly in the field mapping then check the
+    # hierarchy until we find something that does.
+    for field_class in type(field).__mro__:
+        # FastAPI compatibility. This is part of the JSON Schema spec
+        if field_class == collection_field.Set:
+            ret['uniqueItems'] = True
+
+        if field_class in self.field_mapping:
+            type_, fmt = self.field_mapping[field_class]
+            break
+    else:
+        warnings.warn(
+            "Field of type {} does not inherit from marshmallow.Field.".format(
+                type(field)
+            ),
+            UserWarning,
+        )
+        type_, fmt = "string", None
+
+    if type_:
+        ret["type"] = type_
+    if fmt:
+        ret["format"] = fmt
+
+    return ret
 
 
 class SchemaRegistry(dict):
@@ -61,15 +147,27 @@ class SchemaGenerator(BaseSchemaGenerator):
             title=title,
             version=version,
             openapi_version=openapi_version,
-            info={'description': description},
+            info={'description': description} if description else {},
             plugins=[marshmallow_plugin],
         )
 
         self.converter = marshmallow_plugin.converter
         self.resolver = marshmallow_plugin.resolver
 
+        # Overriding attribute functions. Can't use 'add_attribute_function' because that would run both the original and the new one.
+        # We only want the new ones
+        # _______________________________________________________________
+        # Overriding to add exclusiveMinimum and exclusiveMaximum support
+        self.converter.field2range = field2range.__get__(self.converter, OpenAPIConverter)
+        # Overriding to add frozenset support
+        self.converter.field2type_and_format = field2type_and_format.__get__(self.converter, OpenAPIConverter)
+        # Apply new field2range function
+        self.converter.init_attribute_functions()
+
         # Builtin definitions
         self.schemas = SchemaRegistry(self.spec, self.resolver)
+
+        self.operation_ids: Set[str] = set()
 
     def get_endpoints(
         self,
@@ -90,7 +188,7 @@ class SchemaGenerator(BaseSchemaGenerator):
             This allows each path to have multiple responses.
         """
 
-        endpoints_info: Dict[str, Sequence[EndpointModel]] = defaultdict(list)
+        endpoints_info: Dict[str, Sequence[APIRoute]] = defaultdict(list)
 
         for route in routes:
             # path is not defined in BaseRoute, but all implementations have it.
@@ -177,18 +275,59 @@ class SchemaGenerator(BaseSchemaGenerator):
         response_codes = list(schema.get("responses", {}).keys())
         main_response = endpoint.status_code or (response_codes[0] if response_codes else 200)
 
+        if endpoint.route.response_description:
+            dict_safe_add(
+                schema,
+                f'responses.{main_response}.description',
+                endpoint.route.response_description,
+            )
+
         dict_safe_add(
             schema,
             f'responses.{main_response}.content.application/json.schema',
-            self.schemas[endpoint.response_model],
+            self.schemas[endpoint.response_model] if endpoint.response_model else {},
         )
 
     def _add_endpoint_validation_error_response(self, schema: Dict):
         dict_safe_add(
             schema,
-            'responses.422.content.application/json.schema',
-            self.schemas[APIError],
+            'responses.422.description',
+            'Validation Error',
         )
+        dict_safe_add(
+            schema,
+            'responses.422.content.application/json.schema',
+            self.schemas[HTTPValidationError],
+        )
+
+    def _generate_openapi_summary(self, route: APIRoute) -> str:
+        if route.summary:
+            return route.summary
+        return route.name.replace("_", " ").title()
+
+    def _get_route_openapi_metadata(self, route: APIRoute) -> Dict[str, Any]:
+        schema = {}
+        if route.tags:
+            schema["tags"] = route.tags
+        schema["summary"] = self._generate_openapi_summary(route=route)
+        if route.description:
+            schema["description"] = route.description
+        operation_id = route.operation_id or route.unique_id
+        if operation_id in self.operation_ids:
+            message = (
+                f"Duplicate Operation ID {operation_id} for function "
+                + f"{route.endpoint.__name__}"
+            )
+            file_name = getattr(route.endpoint, "__globals__", {}).get("__file__")
+            if file_name:
+                message += f" at {file_name}"
+            warnings.warn(message)
+        self.operation_ids.add(operation_id)
+        schema["operationId"] = operation_id
+        if route.deprecated:
+            schema["deprecated"] = route.deprecated
+
+        return schema
 
     def get_endpoint_schema(
         self,
@@ -197,15 +336,18 @@ class SchemaGenerator(BaseSchemaGenerator):
         '''
             Generates the endpoint schema
         '''
-        schema = self.parse_docstring(endpoint.call)
+        schema = self._get_route_openapi_metadata(endpoint.route)
+
+        schema.update(self.parse_docstring(endpoint.call))
 
         # Query, Path, and Header parameters
-        if (
+        any_params = (
             endpoint.query_params
             or endpoint.path_params
             or endpoint.header_params
             or endpoint.cookie_params
-        ):
+        )
+        if any_params:
             self._add_endpoint_parameters(endpoint, schema)
 
         # Body
@@ -213,11 +355,11 @@ class SchemaGenerator(BaseSchemaGenerator):
             self._add_endpoint_body(endpoint, schema)
 
         # Response
-        if endpoint.response_model:
-            self._add_endpoint_response(endpoint, schema)
+        self._add_endpoint_response(endpoint, schema)
 
-        # Default error response
-        self._add_endpoint_validation_error_response(schema)
+        # Add default error response
+        if (any_params or endpoint.body_params):
+            self._add_endpoint_validation_error_response(schema)
 
         return schema
 

@@ -125,3 +125,7 @@ pip-selfcheck.json
 .minio.sys/
 tests/data/minio/bucket1/Storage/
 scripts/*.jar
+
+notes.md
+sandbox.ipynb
+thunder-tests/

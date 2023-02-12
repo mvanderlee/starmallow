@@ -52,11 +52,11 @@ def put_item2(
 client = TestClient(app)
 
 openapi_schema = {
-    'info': {'description': '', 'title': 'StarMallow', 'version': '0.1.0'},
+    'info': {'title': 'StarMallow', 'version': '0.1.0'},
     'openapi': '3.0.2',
     'components': {
         'schemas': {
-            'APIError': {
+            'HTTPValidationError': {
                 'properties': {
                     'detail': {
                         'description': 'Error '
@@ -78,36 +78,38 @@ openapi_schema = {
     'paths': {
         '/items': {
             'post': {
+                'summary': 'Post Item',
+                'operationId': 'post_item_items_post',
                 'parameters': [
                     {
                         'in': 'query',
                         'name': 'name',
                         'required': True,
-                        'schema': {'type': 'string'},
+                        'schema': {'title': 'Name', 'type': 'string'},
                     },
                     {
                         'in': 'query',
                         'name': 'age',
                         'required': True,
-                        'schema': {'type': 'integer'},
+                        'schema': {'title': 'Age', 'type': 'integer'},
                     },
                     {
                         'in': 'query',
                         'name': 'weight',
                         'required': True,
-                        'schema': {'type': 'number'},
+                        'schema': {'title': 'Weight', 'type': 'number'},
                     },
                     {
                         'in': 'query',
                         'name': 'bool',
                         'required': True,
-                        'schema': {'type': 'boolean'},
+                        'schema': {'title': 'Bool', 'type': 'boolean'},
                     },
                     {
                         'in': 'query',
                         'name': 'decimal',
                         'required': True,
-                        'schema': {'type': 'number'},
+                        'schema': {'title': 'Decimal', 'type': 'number'},
                     },
                     {
                         'in': 'query',
@@ -115,6 +117,7 @@ openapi_schema = {
                         'required': True,
                         'schema': {
                             'format': 'date',
+                            'title': 'Date',
                             'type': 'string',
                         },
                     },
@@ -124,6 +127,7 @@ openapi_schema = {
                         'required': True,
                         'schema': {
                             'format': 'date-time',
+                            'title': 'Datetime',
                             'type': 'string',
                         },
                     },
@@ -131,13 +135,14 @@ openapi_schema = {
                         'in': 'query',
                         'name': 'time',
                         'required': True,
-                        'schema': {'type': 'string'},
+                        'schema': {'title': 'Time', 'type': 'string'},
                     },
                     {
                         'in': 'query',
                         'name': 'timedelta',
                         'required': True,
                         'schema': {
+                            'title': 'Timedelta',
                             'type': 'integer',
                             'x-unit': 'seconds',
                         },
@@ -147,17 +152,25 @@ openapi_schema = {
                         'name': 'uuid',
                         'required': True,
                         'schema': {
+                            'title': 'Uuid',
                             'format': 'uuid',
                             'type': 'string',
                         },
                     },
                 ],
                 'responses': {
-                    '422': {
-                        'content': {
-                            'application/json': {
-                                'schema': {'$ref': '#/components/schemas/APIError'},
-                            },
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
                         },
                     },
                 },
@@ -165,12 +178,14 @@ openapi_schema = {
         },
         '/items/{id}': {
             'put': {
+                'summary': 'Put Item2',
+                'operationId': 'put_item2_items__id__put',
                 'parameters': [
                     {
                         'in': 'query',
                         'name': 'name',
-                        'required': True,
-                        'schema': {'type': 'string'},
+                        'required': False,
+                        'schema': {'title': 'Name', 'type': 'string', 'default': 'foobar'},
                     },
                     {
                         'in': 'query',
@@ -180,6 +195,7 @@ openapi_schema = {
                             'default': 0,
                             'maximum': 50,
                             'minimum': 0,
+                            'title': 'Age',
                             'type': 'integer',
                         },
                     },
@@ -189,6 +205,7 @@ openapi_schema = {
                         'required': True,
                         'schema': {
                             'format': 'uuid',
+                            'title': 'Id',
                             'type': 'string',
                         },
                     },
@@ -197,6 +214,7 @@ openapi_schema = {
                         'name': 'timedelta',
                         'required': True,
                         'schema': {
+                            'title': 'Timedelta',
                             'type': 'integer',
                             'x-unit': 'seconds',
                         },
@@ -207,6 +225,7 @@ openapi_schema = {
                         'required': True,
                         'schema': {
                             'format': 'uuid',
+                            'title': 'Uuid',
                             'type': 'string',
                         },
                     },
@@ -215,48 +234,51 @@ openapi_schema = {
                     'content': {
                         'application/json': {
                             'schema': {
-                                'bool': {
-                                    'in': 'body',
-                                    'name': 'bool',
-                                    'required': True,
-                                    'schema': {'type': 'boolean'},
-                                },
-                                'date': {
-                                    'in': 'body',
-                                    'name': 'date',
-                                    'required': True,
-                                    'schema': {
+                                'type': 'object',
+                                'properties': {
+                                    'bool': {
+                                        'title': 'Bool',
+                                        'type': 'boolean'
+                                    },
+                                    'date': {
                                         'format': 'date',
+                                        'title': 'Date',
                                         'type': 'string',
                                     },
-                                },
-                                'datetime': {
-                                    'in': 'body',
-                                    'name': 'datetime',
-                                    'required': True,
-                                    'schema': {
+                                    'datetime': {
                                         'format': 'date-time',
+                                        'title': 'Datetime',
+                                        'type': 'string',
+                                    },
+                                    'decimal': {
+                                        'title': 'Decimal',
+                                        'type': 'number',
+                                    },
+                                    'time': {
+                                        'title': 'Time',
                                         'type': 'string',
                                     },
                                 },
-                                'decimal': {
-                                    'in': 'body',
-                                    'name': 'decimal',
-                                    'required': True,
-                                    'schema': {'type': 'number'},
-                                },
-                                'time': {
-                                    'in': 'body',
-                                    'name': 'time',
-                                    'required': True,
-                                    'schema': {'type': 'string'},
-                                },
+                                'required': ['bool', 'decimal', 'date', 'datetime', 'time'],
                             },
                         },
                     },
                 },
                 'responses': {
-                    '422': {'content': {'application/json': {'schema': {'$ref': '#/components/schemas/APIError'}}}},
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                    },
                 },
             },
         },
