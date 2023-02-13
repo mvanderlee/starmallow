@@ -1,104 +1,25 @@
+import http.client
 import inspect
 import itertools
 import warnings
 from collections import defaultdict
-from typing import Any, Dict, List, Sequence, Set
+from typing import Any, Dict, List, Optional, Sequence, Set, Type
 
 import marshmallow as ma
 import marshmallow.fields as mf
-import marshmallow_dataclass.collection_field as collection_field
 from apispec import APISpec
-from apispec.ext.marshmallow import MarshmallowPlugin, SchemaResolver
-from apispec.ext.marshmallow.field_converter import (
-    FieldConverterMixin,
-    make_min_max_attributes,
-    make_type_list,
-)
-from apispec.ext.marshmallow.openapi import OpenAPIConverter
+from apispec.ext.marshmallow import SchemaResolver
+# from apispec.ext.marshmallow.openapi import OpenAPIConverter
+from starlette.responses import Response
 from starlette.routing import BaseRoute, Mount, compile_path
 from starlette.schemas import BaseSchemaGenerator
 
+from starmallow.datastructures import DefaultPlaceholder
+from starmallow.endpoint import EndpointModel, SchemaModel
+from starmallow.ext.marshmallow import MarshmallowPlugin
 from starmallow.responses import HTTPValidationError
-from starmallow.routing import APIRoute, EndpointModel, SchemaModel
-from starmallow.utils import dict_safe_add
-
-
-# Overriding to add exclusiveMinimum and exclusiveMaximum support
-def field2range(self: FieldConverterMixin, field: mf.Field, ret) -> dict:
-    """Return the dictionary of OpenAPI field attributes for a set of
-    :class:`Range <marshmallow.validators.Range>` validators.
-
-    :param Field field: A marshmallow field.
-    :rtype: dict
-    """
-    validators = [
-        validator
-        for validator in field.validators
-        if (
-            hasattr(validator, "min")
-            and hasattr(validator, "max")
-            and not hasattr(validator, "equal")
-        )
-    ]
-
-    x_prefix = not set(make_type_list(ret.get("type"))) & {"number", "integer"}
-
-    min_attr = (
-        'x-minimum'
-        if x_prefix
-        else (
-            'exclusiveMinimum'
-            if any(not getattr(validator, 'min_inclusive') for validator in validators)
-            else 'minimum'
-        )
-    )
-    max_attr = (
-        'x-maximum'
-        if x_prefix
-        else (
-            'exclusiveMaximum'
-            if any(not getattr(validator, 'max_inclusive') for validator in validators)
-            else 'maximum'
-        )
-    )
-    return make_min_max_attributes(validators, min_attr, max_attr)
-
-
-def field2type_and_format(
-    self: FieldConverterMixin, field: mf.Field, **kwargs: Any
-) -> dict:
-    """Return the dictionary of OpenAPI type and format based on the field type.
-
-    :param Field field: A marshmallow field.
-    :rtype: dict
-    """
-    ret = {}
-
-    # If this type isn't directly in the field mapping then check the
-    # hierarchy until we find something that does.
-    for field_class in type(field).__mro__:
-        # FastAPI compatibility. This is part of the JSON Schema spec
-        if field_class == collection_field.Set:
-            ret['uniqueItems'] = True
-
-        if field_class in self.field_mapping:
-            type_, fmt = self.field_mapping[field_class]
-            break
-    else:
-        warnings.warn(
-            "Field of type {} does not inherit from marshmallow.Field.".format(
-                type(field)
-            ),
-            UserWarning,
-        )
-        type_, fmt = "string", None
-
-    if type_:
-        ret["type"] = type_
-    if fmt:
-        ret["format"] = fmt
-
-    return ret
+from starmallow.routing import APIRoute
+from starmallow.utils import deep_dict_update, dict_safe_add, status_code_ranges
 
 
 class SchemaRegistry(dict):
@@ -120,7 +41,11 @@ class SchemaRegistry(dict):
         try:
             schema = super().__getitem__(schema_class)
         except KeyError:
-            self.spec.components.schema(component_id=schema_class.__name__, schema=item)
+            try:
+                schema = self.spec.components.schemas.__getitem__(schema_class.__name__)
+            except KeyError:
+                self.spec.components.schema(component_id=schema_class.__name__, schema=item)
+
             schema = self.resolver.resolve_schema_dict(item)
             super().__setitem__(schema_class, schema)
 
@@ -153,16 +78,6 @@ class SchemaGenerator(BaseSchemaGenerator):
 
         self.converter = marshmallow_plugin.converter
         self.resolver = marshmallow_plugin.resolver
-
-        # Overriding attribute functions. Can't use 'add_attribute_function' because that would run both the original and the new one.
-        # We only want the new ones
-        # _______________________________________________________________
-        # Overriding to add exclusiveMinimum and exclusiveMaximum support
-        self.converter.field2range = field2range.__get__(self.converter, OpenAPIConverter)
-        # Overriding to add frozenset support
-        self.converter.field2type_and_format = field2type_and_format.__get__(self.converter, OpenAPIConverter)
-        # Apply new field2range function
-        self.converter.init_attribute_functions()
 
         # Builtin definitions
         self.schemas = SchemaRegistry(self.spec, self.resolver)
@@ -261,34 +176,81 @@ class SchemaGenerator(BaseSchemaGenerator):
                             required_properties.append(name)
 
         if endpoint_schema:
-            dict_safe_add(
-                schema,
-                'requestBody.content.application/json.schema',
-                endpoint_schema,
-            )
+            schema['requestBody'] = {
+                'content': {
+                    endpoint.response_class.media_type: {'schema': endpoint_schema}
+                },
+                'required': True,
+            }
 
     def _add_endpoint_response(
         self,
         endpoint: EndpointModel,
         schema: Dict,
     ):
-        response_codes = list(schema.get("responses", {}).keys())
-        main_response = endpoint.status_code or (response_codes[0] if response_codes else 200)
+        operation_responses = schema.setdefault("responses", {})
+        response_codes = list(operation_responses.keys())
+        main_response = str(endpoint.status_code or (response_codes[0] if response_codes else 200))
 
+        operation_responses[main_response] = {
+            'content': {
+                endpoint.response_class.media_type: {
+                    'schema': self.schemas[endpoint.response_model] if endpoint.response_model else {}
+                }
+            },
+        }
         if endpoint.route.response_description:
-            dict_safe_add(
-                schema,
-                f'responses.{main_response}.description',
-                endpoint.route.response_description,
-            )
+            operation_responses[main_response]['description'] = endpoint.route.response_description
 
-        dict_safe_add(
-            schema,
-            f'responses.{main_response}.content.application/json.schema',
-            self.schemas[endpoint.response_model] if endpoint.response_model else {},
-        )
+        # Process additional responses
+        route = endpoint.route
+        if isinstance(route.response_class, DefaultPlaceholder):
+            current_response_class: Type[Response] = route.response_class.value
+        else:
+            current_response_class = route.response_class
+        assert current_response_class, "A response class is needed to generate OpenAPI"
+        route_response_media_type: Optional[str] = current_response_class.media_type
 
-    def _add_endpoint_validation_error_response(self, schema: Dict):
+        if route.responses:
+            for (
+                additional_status_code,
+                additional_response,
+            ) in route.responses.items():
+                process_response = additional_response.copy()
+                process_response.pop("model", None)
+                status_code_key = str(additional_status_code).upper()
+                if status_code_key == "DEFAULT":
+                    status_code_key = "default"
+                openapi_response = operation_responses.setdefault(
+                    status_code_key, {}
+                )
+                assert isinstance(
+                    process_response, dict
+                ), "An additional response must be a dict"
+                field = route.response_fields.get(additional_status_code)
+                additional_field_schema: Optional[Dict[str, Any]] = None
+                if field:
+                    additional_field_schema = self.schemas[field] if field else {}
+                    media_type = route_response_media_type or "application/json"
+                    additional_schema = (
+                        process_response.setdefault("content", {})
+                        .setdefault(media_type, {})
+                        .setdefault("schema", {})
+                    )
+                    deep_dict_update(additional_schema, additional_field_schema)
+                status_text: Optional[str] = status_code_ranges.get(
+                    str(additional_status_code).upper()
+                ) or http.client.responses.get(int(additional_status_code))
+                description = (
+                    process_response.get("description")
+                    or openapi_response.get("description")
+                    or status_text
+                    or "Additional Response"
+                )
+                deep_dict_update(openapi_response, process_response)
+                openapi_response["description"] = description
+
+    def _add_default_error_response(self, schema: Dict):
         dict_safe_add(
             schema,
             'responses.422.description',
@@ -358,10 +320,35 @@ class SchemaGenerator(BaseSchemaGenerator):
         self._add_endpoint_response(endpoint, schema)
 
         # Add default error response
-        if (any_params or endpoint.body_params):
-            self._add_endpoint_validation_error_response(schema)
+        if (any_params or endpoint.body_params) and not any(
+            [
+                status in schema['responses']
+                for status in ["422", "4XX", "default"]
+            ]
+        ):
+            self._add_default_error_response(schema)
+
+        # Callbacks
+        if endpoint.route.callbacks:
+            callbacks = {}
+            for callback in endpoint.route.callbacks:
+                if isinstance(callback, APIRoute):
+                    callbacks[callback.name] = {
+                        path: self.get_operations(endpoints)
+                        for path, endpoints in self.get_endpoints([callback]).items()
+                    }
+
+            schema['callbacks'] = callbacks
 
         return schema
+
+    def get_operations(self, endpoints: List[EndpointModel]):
+        return {
+            method.lower(): self.get_endpoint_schema(e)
+            for e in endpoints
+            for method in e.methods
+            if method != 'HEAD'
+        }
 
     def get_schema(
         self,
@@ -375,12 +362,7 @@ class SchemaGenerator(BaseSchemaGenerator):
         for path, endpoints in endpoints_info.items():
             self.spec.path(
                 path=path,
-                operations={
-                    method.lower(): self.get_endpoint_schema(e)
-                    for e in endpoints
-                    for method in e.methods
-                    if method != 'HEAD'
-                },
+                operations=self.get_operations(endpoints),
             )
 
         return self.spec.to_dict()

@@ -25,6 +25,7 @@ from starlette.responses import HTMLResponse, JSONResponse, Response
 from starlette.routing import BaseRoute
 from starlette.types import Receive, Scope, Send
 
+from starmallow.datastructures import Default
 from starmallow.docs import get_redoc_html, get_swagger_ui_html, get_swagger_ui_oauth2_redirect_html
 from starmallow.exception_handlers import (
     http_exception_handler,
@@ -211,10 +212,12 @@ class StarMallow(Starlette):
         summary: Optional[str] = None,
         description: Optional[str] = None,
         response_description: str = "Successful Response",
+        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
+        callbacks: Optional[List[BaseRoute]] = None,
         # Sets the OpenAPI operationId to be used in your path operation
         operation_id: Optional[str] = None,
         # If operation_id is None, this function will be used to create one.
-        generate_unique_id_function: Callable[["APIRoute"], str] = generate_unique_id,
+        generate_unique_id_function: Callable[["APIRoute"], str] = Default(generate_unique_id),
         # OpenAPI tags
         tags: Optional[List[Union[str, Enum]]] = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
@@ -232,6 +235,8 @@ class StarMallow(Starlette):
             summary=summary,
             description=description,
             response_description=response_description,
+            responses=responses,
+            callbacks=callbacks,
             operation_id=operation_id,
             generate_unique_id_function=generate_unique_id_function,
             openapi_extra=openapi_extra,
@@ -252,10 +257,12 @@ class StarMallow(Starlette):
         summary: Optional[str] = None,
         description: Optional[str] = None,
         response_description: str = "Successful Response",
+        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
+        callbacks: Optional[List[BaseRoute]] = None,
         # Sets the OpenAPI operationId to be used in your path operation
         operation_id: Optional[str] = None,
         # If operation_id is None, this function will be used to create one.
-        generate_unique_id_function: Callable[["APIRoute"], str] = generate_unique_id,
+        generate_unique_id_function: Callable[["APIRoute"], str] = Default(generate_unique_id),
         # OpenAPI tags
         tags: Optional[List[Union[str, Enum]]] = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
@@ -272,10 +279,39 @@ class StarMallow(Starlette):
             summary=summary,
             description=description,
             response_description=response_description,
+            responses=responses,
+            callbacks=callbacks,
             operation_id=operation_id,
             generate_unique_id_function=generate_unique_id_function,
             openapi_extra=openapi_extra,
             tags=tags,
+        )
+
+    def include_router(
+        self,
+        router: APIRouter,
+        *,
+        prefix: str = "",
+        tags: Optional[List[Union[str, Enum]]] = None,
+        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
+        callbacks: Optional[List[BaseRoute]] = None,
+        deprecated: Optional[bool] = None,
+        include_in_schema: bool = True,
+        default_response_class: Type[Response] = Default(JSONResponse),
+        generate_unique_id_function: Callable[[APIRoute], str] = Default(
+            generate_unique_id
+        ),
+    ) -> None:
+        self.router.include_router(
+            router,
+            prefix=prefix,
+            tags=tags,
+            responses=responses,
+            callbacks=callbacks,
+            deprecated=deprecated,
+            include_in_schema=include_in_schema,
+            default_response_class=default_response_class,
+            generate_unique_id_function=generate_unique_id_function,
         )
 
     def get(
@@ -291,10 +327,12 @@ class StarMallow(Starlette):
         summary: Optional[str] = None,
         description: Optional[str] = None,
         response_description: str = "Successful Response",
+        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
+        callbacks: Optional[List[BaseRoute]] = None,
         # Sets the OpenAPI operationId to be used in your path operation
         operation_id: Optional[str] = None,
         # If operation_id is None, this function will be used to create one.
-        generate_unique_id_function: Callable[["APIRoute"], str] = generate_unique_id,
+        generate_unique_id_function: Callable[["APIRoute"], str] = Default(generate_unique_id),
         # OpenAPI tags
         tags: Optional[List[Union[str, Enum]]] = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
@@ -310,6 +348,8 @@ class StarMallow(Starlette):
             summary=summary,
             description=description,
             response_description=response_description,
+            responses=responses,
+            callbacks=callbacks,
             operation_id=operation_id,
             generate_unique_id_function=generate_unique_id_function,
             openapi_extra=openapi_extra,
@@ -329,10 +369,12 @@ class StarMallow(Starlette):
         summary: Optional[str] = None,
         description: Optional[str] = None,
         response_description: str = "Successful Response",
+        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
+        callbacks: Optional[List[BaseRoute]] = None,
         # Sets the OpenAPI operationId to be used in your path operation
         operation_id: Optional[str] = None,
         # If operation_id is None, this function will be used to create one.
-        generate_unique_id_function: Callable[["APIRoute"], str] = generate_unique_id,
+        generate_unique_id_function: Callable[["APIRoute"], str] = Default(generate_unique_id),
         # OpenAPI tags
         tags: Optional[List[Union[str, Enum]]] = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
@@ -348,6 +390,8 @@ class StarMallow(Starlette):
             summary=summary,
             description=description,
             response_description=response_description,
+            responses=responses,
+            callbacks=callbacks,
             operation_id=operation_id,
             generate_unique_id_function=generate_unique_id_function,
             openapi_extra=openapi_extra,
@@ -367,10 +411,12 @@ class StarMallow(Starlette):
         summary: Optional[str] = None,
         description: Optional[str] = None,
         response_description: str = "Successful Response",
+        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
+        callbacks: Optional[List[BaseRoute]] = None,
         # Sets the OpenAPI operationId to be used in your path operation
         operation_id: Optional[str] = None,
         # If operation_id is None, this function will be used to create one.
-        generate_unique_id_function: Callable[["APIRoute"], str] = generate_unique_id,
+        generate_unique_id_function: Callable[["APIRoute"], str] = Default(generate_unique_id),
         # OpenAPI tags
         tags: Optional[List[Union[str, Enum]]] = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
@@ -386,6 +432,8 @@ class StarMallow(Starlette):
             summary=summary,
             description=description,
             response_description=response_description,
+            responses=responses,
+            callbacks=callbacks,
             operation_id=operation_id,
             generate_unique_id_function=generate_unique_id_function,
             openapi_extra=openapi_extra,
@@ -405,10 +453,12 @@ class StarMallow(Starlette):
         summary: Optional[str] = None,
         description: Optional[str] = None,
         response_description: str = "Successful Response",
+        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
+        callbacks: Optional[List[BaseRoute]] = None,
         # Sets the OpenAPI operationId to be used in your path operation
         operation_id: Optional[str] = None,
         # If operation_id is None, this function will be used to create one.
-        generate_unique_id_function: Callable[["APIRoute"], str] = generate_unique_id,
+        generate_unique_id_function: Callable[["APIRoute"], str] = Default(generate_unique_id),
         # OpenAPI tags
         tags: Optional[List[Union[str, Enum]]] = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
@@ -424,6 +474,8 @@ class StarMallow(Starlette):
             summary=summary,
             description=description,
             response_description=response_description,
+            responses=responses,
+            callbacks=callbacks,
             operation_id=operation_id,
             generate_unique_id_function=generate_unique_id_function,
             openapi_extra=openapi_extra,
@@ -443,10 +495,12 @@ class StarMallow(Starlette):
         summary: Optional[str] = None,
         description: Optional[str] = None,
         response_description: str = "Successful Response",
+        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
+        callbacks: Optional[List[BaseRoute]] = None,
         # Sets the OpenAPI operationId to be used in your path operation
         operation_id: Optional[str] = None,
         # If operation_id is None, this function will be used to create one.
-        generate_unique_id_function: Callable[["APIRoute"], str] = generate_unique_id,
+        generate_unique_id_function: Callable[["APIRoute"], str] = Default(generate_unique_id),
         # OpenAPI tags
         tags: Optional[List[Union[str, Enum]]] = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
@@ -462,6 +516,8 @@ class StarMallow(Starlette):
             summary=summary,
             description=description,
             response_description=response_description,
+            responses=responses,
+            callbacks=callbacks,
             operation_id=operation_id,
             generate_unique_id_function=generate_unique_id_function,
             openapi_extra=openapi_extra,
@@ -481,10 +537,12 @@ class StarMallow(Starlette):
         summary: Optional[str] = None,
         description: Optional[str] = None,
         response_description: str = "Successful Response",
+        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
+        callbacks: Optional[List[BaseRoute]] = None,
         # Sets the OpenAPI operationId to be used in your path operation
         operation_id: Optional[str] = None,
         # If operation_id is None, this function will be used to create one.
-        generate_unique_id_function: Callable[["APIRoute"], str] = generate_unique_id,
+        generate_unique_id_function: Callable[["APIRoute"], str] = Default(generate_unique_id),
         # OpenAPI tags
         tags: Optional[List[Union[str, Enum]]] = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
@@ -500,6 +558,8 @@ class StarMallow(Starlette):
             summary=summary,
             description=description,
             response_description=response_description,
+            responses=responses,
+            callbacks=callbacks,
             operation_id=operation_id,
             generate_unique_id_function=generate_unique_id_function,
             openapi_extra=openapi_extra,
@@ -519,10 +579,12 @@ class StarMallow(Starlette):
         summary: Optional[str] = None,
         description: Optional[str] = None,
         response_description: str = "Successful Response",
+        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
+        callbacks: Optional[List[BaseRoute]] = None,
         # Sets the OpenAPI operationId to be used in your path operation
         operation_id: Optional[str] = None,
         # If operation_id is None, this function will be used to create one.
-        generate_unique_id_function: Callable[["APIRoute"], str] = generate_unique_id,
+        generate_unique_id_function: Callable[["APIRoute"], str] = Default(generate_unique_id),
         # OpenAPI tags
         tags: Optional[List[Union[str, Enum]]] = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
@@ -538,6 +600,8 @@ class StarMallow(Starlette):
             summary=summary,
             description=description,
             response_description=response_description,
+            responses=responses,
+            callbacks=callbacks,
             operation_id=operation_id,
             generate_unique_id_function=generate_unique_id_function,
             openapi_extra=openapi_extra,
@@ -557,10 +621,12 @@ class StarMallow(Starlette):
         summary: Optional[str] = None,
         description: Optional[str] = None,
         response_description: str = "Successful Response",
+        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
+        callbacks: Optional[List[BaseRoute]] = None,
         # Sets the OpenAPI operationId to be used in your path operation
         operation_id: Optional[str] = None,
         # If operation_id is None, this function will be used to create one.
-        generate_unique_id_function: Callable[["APIRoute"], str] = generate_unique_id,
+        generate_unique_id_function: Callable[["APIRoute"], str] = Default(generate_unique_id),
         # OpenAPI tags
         tags: Optional[List[Union[str, Enum]]] = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
@@ -576,6 +642,8 @@ class StarMallow(Starlette):
             summary=summary,
             description=description,
             response_description=response_description,
+            responses=responses,
+            callbacks=callbacks,
             operation_id=operation_id,
             generate_unique_id_function=generate_unique_id_function,
             openapi_extra=openapi_extra,

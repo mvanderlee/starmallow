@@ -1133,18 +1133,21 @@ openapi_schema = {
             "HTTPValidationError": {
                 'properties': {
                     'detail': {
-                        'description': 'Error '
-                        'detail',
+                        'description': 'Error detail',
+                        'title': 'Detail',
                     },
                     'errors': {
                         'description': 'Exception or error type',
+                        'title': 'Errors',
                     },
                     'status_code': {
                         'description': 'HTTP status code',
+                        'title': 'Status Code',
                         'type': 'integer',
                     },
                 },
                 'required': ['detail', 'status_code'],
+                'title': 'HTTPValidationError',
                 'type': 'object',
             },
         }

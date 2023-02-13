@@ -10,7 +10,7 @@ import marshmallow.fields as mf
 from marshmallow.validate import Range
 from starlette.testclient import TestClient
 
-from starmallow.applications import StarMallow
+from starmallow import StarMallow
 from starmallow.params import Body, Cookie, Header, Path, Query
 
 app = StarMallow()
@@ -59,18 +59,21 @@ openapi_schema = {
             'HTTPValidationError': {
                 'properties': {
                     'detail': {
-                        'description': 'Error '
-                        'detail',
+                        'description': 'Error detail',
+                        'title': 'Detail',
                     },
                     'errors': {
                         'description': 'Exception or error type',
+                        'title': 'Errors',
                     },
                     'status_code': {
                         'description': 'HTTP status code',
+                        'title': 'Status Code',
                         'type': 'integer',
                     },
                 },
                 'required': ['detail', 'status_code'],
+                'title': 'HTTPValidationError',
                 'type': 'object',
             },
         },
@@ -263,6 +266,7 @@ openapi_schema = {
                             },
                         },
                     },
+                    'required': True,
                 },
                 'responses': {
                     "200": {

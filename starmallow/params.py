@@ -69,7 +69,7 @@ class Param:
         if validators and is_iterable_but_not_string(validators):
             self.validators += validators
 
-        if self.model and self.model.validators and self.validators:
+        if self.model and getattr(self.model, 'validators', None) and self.validators:
             logger.warning('Provided validators will override model validators')
 
 
