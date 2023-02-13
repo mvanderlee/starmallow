@@ -1,4 +1,3 @@
-import warnings
 from typing import Any
 
 import marshmallow as ma
@@ -13,8 +12,51 @@ from apispec.ext.marshmallow.field_converter import (
 )
 from apispec.ext.marshmallow.openapi import OpenAPIConverter as ApiSpecOpenAPIConverter
 from apispec.utils import OpenAPIVersion
+from marshmallow.utils import is_collection
 
 from starmallow.utils import MARSHMALLOW_ITERABLES
+
+# Properties that may be defined in a field's metadata that will be added to the output
+# of field2property
+# https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.0.2.md#schemaObject
+_VALID_PROPERTIES = {
+    "format",
+    "title",
+    "description",
+    "default",
+    "multipleOf",
+    "maximum",
+    "exclusiveMaximum",
+    "minimum",
+    "exclusiveMinimum",
+    "maxLength",
+    "minLength",
+    "pattern",
+    "maxItems",
+    "minItems",
+    "uniqueItems",
+    "maxProperties",
+    "minProperties",
+    "required",
+    "enum",
+    "type",
+    "items",
+    "allOf",
+    "oneOf",
+    "anyOf",
+    "not",
+    "properties",
+    "additionalProperties",
+    "readOnly",
+    "writeOnly",
+    "xml",
+    "externalDocs",
+    "example",
+    "nullable",
+}
+
+
+_VALID_PREFIX = "x-"
 
 
 class OpenAPIConverter(ApiSpecOpenAPIConverter):
@@ -31,6 +73,7 @@ class OpenAPIConverter(ApiSpecOpenAPIConverter):
             spec=spec,
         )
         self.add_attribute_function(self.field2title)
+        self.add_attribute_function(self.field2uniqueItems)
 
     # Overriding to add exclusiveMinimum and exclusiveMaximum support
     def field2range(self: FieldConverterMixin, field: mf.Field, ret) -> dict:
@@ -72,41 +115,40 @@ class OpenAPIConverter(ApiSpecOpenAPIConverter):
         )
         return make_min_max_attributes(validators, min_attr, max_attr)
 
-    # Overriding to add uniqueItems support
-    def field2type_and_format(
-        self: FieldConverterMixin, field: mf.Field, **kwargs: Any
+    # Override to remove 'deprecated' from valid properties.
+    # The spec has is at the parameter level, not schema level
+    def metadata2properties(
+        self, field: mf.Field, **kwargs: Any,
     ) -> dict:
-        """Return the dictionary of OpenAPI type and format based on the field type.
+        """Return a dictionary of properties extracted from field metadata.
+
+        Will include field metadata that are valid properties of `OpenAPI schema
+        objects
+        <https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.0.2.md#schemaObject>`_
+        (e.g. "description", "enum", "example").
+
+        In addition, `specification extensions
+        <https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.0.2.md#specification-extensions>`_
+        are supported.  Prefix `x_` to the desired extension when passing the
+        keyword argument to the field constructor. apispec will convert `x_` to
+        `x-` to comply with OpenAPI.
 
         :param Field field: A marshmallow field.
         :rtype: dict
         """
-        ret = {}
+        # Dasherize metadata that starts with x_
+        metadata = {
+            key.replace("_", "-") if key.startswith("x_") else key: value
+            for key, value in field.metadata.items()
+            if isinstance(key, str)
+        }
 
-        # If this type isn't directly in the field mapping then check the
-        # hierarchy until we find something that does.
-        for field_class in type(field).__mro__:
-            # FastAPI compatibility. This is part of the JSON Schema spec
-            if field_class == collection_field.Set:
-                ret['uniqueItems'] = True
-
-            if field_class in self.field_mapping:
-                type_, fmt = self.field_mapping[field_class]
-                break
-        else:
-            warnings.warn(
-                "Field of type {} does not inherit from marshmallow.Field.".format(
-                    type(field)
-                ),
-                UserWarning,
-            )
-            type_, fmt = "string", None
-
-        if type_:
-            ret["type"] = type_
-        if fmt:
-            ret["format"] = fmt
-
+        # Avoid validation error with "Additional properties not allowed"
+        ret = {
+            key: value
+            for key, value in metadata.items()
+            if key in _VALID_PROPERTIES or key.startswith(_VALID_PREFIX)
+        }
         return ret
 
     def field2title(self: FieldConverterMixin, field: mf.Field, **kwargs: Any) -> dict:
@@ -117,6 +159,56 @@ class OpenAPIConverter(ApiSpecOpenAPIConverter):
         elif field.name and not isinstance(field.parent, MARSHMALLOW_ITERABLES):
             ret['title'] = field.name.title().replace('_', ' ')
 
+        return ret
+
+    def field2uniqueItems(
+        self: FieldConverterMixin, field: mf.Field, **kwargs: Any
+    ) -> dict:
+        ret = {}
+
+        # If this type isn't directly in the field mapping then check the
+        # hierarchy until we find something that does.
+        for field_class in type(field).__mro__:
+            # FastAPI compatibility. This is part of the JSON Schema spec
+            if field_class == collection_field.Set:
+                ret['uniqueItems'] = True
+
+        return ret
+
+    # Overrice to add 'deprecated' support
+    def _field2parameter(
+        self, field: mf.Field, *, name: str, location: str
+    ):
+        """Return an OpenAPI parameter as a `dict`, given a marshmallow
+        :class:`Field <marshmallow.Field>`.
+
+        https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.0.2.md#parameterObject
+        """
+        ret: dict = {"in": location, "name": name}
+
+        partial = getattr(field.parent, "partial", False)
+        ret["required"] = field.required and (
+            not partial
+            or (is_collection(partial) and field.name not in partial)  # type:ignore
+        )
+
+        prop = self.field2property(field)
+        multiple = isinstance(field, mf.List)
+
+        if self.openapi_version.major < 3:
+            if multiple:
+                ret["collectionFormat"] = "multi"
+            ret.update(prop)
+        else:
+            if multiple:
+                ret["explode"] = True
+                ret["style"] = "form"
+            if prop.get("description", None):
+                ret["description"] = prop.pop("description")
+            ret["schema"] = prop
+
+            if 'deprecated' in field.metadata:
+                ret['deprecated'] = field.metadata['deprecated']
         return ret
 
     def schema2jsonschema(self, schema):

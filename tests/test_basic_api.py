@@ -195,6 +195,186 @@ openapi_schema = {
                 ],
             }
         },
+        "/path/date/{item_id}": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                    },
+                },
+                "summary": "Get Date Id",
+                "operationId": "get_date_id_path_date__item_id__get",
+                "parameters": [
+                    {
+                        "required": True,
+                        "schema": {"title": "Item Id", "type": "string", "format": "date"},
+                        "name": "item_id",
+                        "in": "path",
+                    }
+                ],
+            }
+        },
+        "/path/datetime/{item_id}": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                    },
+                },
+                "summary": "Get Datetime Id",
+                "operationId": "get_datetime_id_path_datetime__item_id__get",
+                "parameters": [
+                    {
+                        "required": True,
+                        "schema": {"title": "Item Id", "type": "string", "format": "date-time"},
+                        "name": "item_id",
+                        "in": "path",
+                    }
+                ],
+            }
+        },
+        "/path/time/{item_id}": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                    },
+                },
+                "summary": "Get Time Id",
+                "operationId": "get_time_id_path_time__item_id__get",
+                "parameters": [
+                    {
+                        "required": True,
+                        "schema": {"title": "Item Id", "type": "string"},
+                        "name": "item_id",
+                        "in": "path",
+                    }
+                ],
+            }
+        },
+        "/path/timedelta/{item_id}": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                    },
+                },
+                "summary": "Get Timedelta Id",
+                "operationId": "get_timedelta_id_path_timedelta__item_id__get",
+                "parameters": [
+                    {
+                        "required": True,
+                        "schema": {"title": "Item Id", "type": "integer", "x-unit": "seconds"},
+                        "name": "item_id",
+                        "in": "path",
+                    }
+                ],
+            }
+        },
+        "/path/uuid/{item_id}": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                    },
+                },
+                "summary": "Get Uuid Id",
+                "operationId": "get_uuid_id_path_uuid__item_id__get",
+                "parameters": [
+                    {
+                        "required": True,
+                        "schema": {"title": "Item Id", "type": "string", "format": "uuid"},
+                        "name": "item_id",
+                        "in": "path",
+                    }
+                ],
+            }
+        },
+        "/path/decimal/{item_id}": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                    },
+                },
+                "summary": "Get Decimal Id",
+                "operationId": "get_decimal_id_path_decimal__item_id__get",
+                "parameters": [
+                    {
+                        "required": True,
+                        "schema": {"title": "Item Id", "type": "number"},
+                        "name": "item_id",
+                        "in": "path",
+                    }
+                ],
+            }
+        },
         "/path/param/{item_id}": {
             "get": {
                 "responses": {
@@ -249,6 +429,90 @@ openapi_schema = {
                     {
                         "required": True,
                         "schema": {"title": "Item Id", "type": "string"},
+                        "name": "item_id",
+                        "in": "path",
+                    }
+                ],
+            }
+        },
+        "/path/param-deprecated/{item_id}": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                    },
+                },
+                "summary": "Get Path Param Deprecated Id",
+                "operationId": "get_path_param_deprecated_id_path_param_deprecated__item_id__get",
+                "parameters": [
+                    {
+                        "deprecated": True,
+                        "required": True,
+                        "schema": {"title": "Item Id", "type": "string"},
+                        "name": "item_id",
+                        "in": "path",
+                    }
+                ],
+            }
+        },
+        "/path/param-exclude/{item_id}": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                    },
+                },
+                "summary": "Get Path Param Exclude Id",
+                "operationId": "get_path_param_exclude_id_path_param_exclude__item_id__get",
+                "parameters": [],
+            }
+        },
+        "/path/param-title/{item_id}": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                    },
+                },
+                "summary": "Get Path Param Title Id",
+                "operationId": "get_path_param_title_id_path_param_title__item_id__get",
+                "parameters": [
+                    {
+                        "required": True,
+                        "schema": {"title": "Custom Item Title", "type": "string"},
                         "name": "item_id",
                         "in": "path",
                     }
@@ -350,6 +614,40 @@ openapi_schema = {
                             "title": "Item Id",
                             "maxLength": 3,
                             "minLength": 2,
+                            "type": "string",
+                        },
+                        "name": "item_id",
+                        "in": "path",
+                    }
+                ],
+            }
+        },
+        "/path/param-regex/{item_id}": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                    },
+                },
+                "summary": "Get Path Param Regex",
+                "operationId": "get_path_param_regex_path_param_regex__item_id__get",
+                "parameters": [
+                    {
+                        "required": True,
+                        "schema": {
+                            "pattern": "colou?r",
+                            "title": "Item Id",
                             "type": "string",
                         },
                         "name": "item_id",
@@ -830,6 +1128,623 @@ openapi_schema = {
                             "title": "Item Id",
                             "maximum": 3.0,
                             "minimum": 1.0,
+                            "type": "integer",
+                        },
+                        "name": "item_id",
+                        "in": "path",
+                    }
+                ],
+            }
+        },
+        "/path/ma-param-minlength/{item_id}": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                    },
+                },
+                "summary": "Get Path Ma Param Min Length",
+                "operationId": "get_path_ma_param_min_length_path_ma_param_minlength__item_id__get",
+                "parameters": [
+                    {
+                        "required": True,
+                        "schema": {
+                            "title": "Item Id",
+                            "minLength": 3,
+                            "type": "string",
+                        },
+                        "name": "item_id",
+                        "in": "path",
+                    }
+                ],
+            }
+        },
+        "/path/ma-param-maxlength/{item_id}": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                    },
+                },
+                "summary": "Get Path Ma Param Max Length",
+                "operationId": "get_path_ma_param_max_length_path_ma_param_maxlength__item_id__get",
+                "parameters": [
+                    {
+                        "required": True,
+                        "schema": {
+                            "title": "Item Id",
+                            "maxLength": 3,
+                            "type": "string",
+                        },
+                        "name": "item_id",
+                        "in": "path",
+                    }
+                ],
+            }
+        },
+        "/path/ma-param-min_maxlength/{item_id}": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                    },
+                },
+                "summary": "Get Path Ma Param Min Max Length",
+                "operationId": "get_path_ma_param_min_max_length_path_ma_param_min_maxlength__item_id__get",
+                "parameters": [
+                    {
+                        "required": True,
+                        "schema": {
+                            "title": "Item Id",
+                            "maxLength": 3,
+                            "minLength": 2,
+                            "type": "string",
+                        },
+                        "name": "item_id",
+                        "in": "path",
+                    }
+                ],
+            }
+        },
+        "/path/ma-param-regex/{item_id}": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                    },
+                },
+                "summary": "Get Path Ma Param Regex",
+                "operationId": "get_path_ma_param_regex_path_ma_param_regex__item_id__get",
+                "parameters": [
+                    {
+                        "required": True,
+                        "schema": {
+                            "pattern": "colou?r",
+                            "title": "Item Id",
+                            "type": "string",
+                        },
+                        "name": "item_id",
+                        "in": "path",
+                    }
+                ],
+            }
+        },
+        "/path/ma-param-gt/{item_id}": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                    },
+                },
+                "summary": "Get Path Ma Param Gt",
+                "operationId": "get_path_ma_param_gt_path_ma_param_gt__item_id__get",
+                "parameters": [
+                    {
+                        "required": True,
+                        "schema": {
+                            "title": "Item Id",
+                            "exclusiveMinimum": 3.0,
+                            "type": "number",
+                        },
+                        "name": "item_id",
+                        "in": "path",
+                    }
+                ],
+            }
+        },
+        "/path/ma-param-gt0/{item_id}": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                    },
+                },
+                "summary": "Get Path Ma Param Gt0",
+                "operationId": "get_path_ma_param_gt0_path_ma_param_gt0__item_id__get",
+                "parameters": [
+                    {
+                        "required": True,
+                        "schema": {
+                            "title": "Item Id",
+                            "exclusiveMinimum": 0.0,
+                            "type": "number",
+                        },
+                        "name": "item_id",
+                        "in": "path",
+                    }
+                ],
+            }
+        },
+        "/path/ma-param-ge/{item_id}": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                    },
+                },
+                "summary": "Get Path Ma Param Ge",
+                "operationId": "get_path_ma_param_ge_path_ma_param_ge__item_id__get",
+                "parameters": [
+                    {
+                        "required": True,
+                        "schema": {
+                            "title": "Item Id",
+                            "minimum": 3.0,
+                            "type": "number",
+                        },
+                        "name": "item_id",
+                        "in": "path",
+                    }
+                ],
+            }
+        },
+        "/path/ma-param-lt/{item_id}": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                    },
+                },
+                "summary": "Get Path Ma Param Lt",
+                "operationId": "get_path_ma_param_lt_path_ma_param_lt__item_id__get",
+                "parameters": [
+                    {
+                        "required": True,
+                        "schema": {
+                            "title": "Item Id",
+                            "exclusiveMaximum": 3.0,
+                            "type": "number",
+                        },
+                        "name": "item_id",
+                        "in": "path",
+                    }
+                ],
+            }
+        },
+        "/path/ma-param-lt0/{item_id}": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                    },
+                },
+                "summary": "Get Path Ma Param Lt0",
+                "operationId": "get_path_ma_param_lt0_path_ma_param_lt0__item_id__get",
+                "parameters": [
+                    {
+                        "required": True,
+                        "schema": {
+                            "title": "Item Id",
+                            "exclusiveMaximum": 0.0,
+                            "type": "number",
+                        },
+                        "name": "item_id",
+                        "in": "path",
+                    }
+                ],
+            }
+        },
+        "/path/ma-param-le/{item_id}": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                    },
+                },
+                "summary": "Get Path Ma Param Le",
+                "operationId": "get_path_ma_param_le_path_ma_param_le__item_id__get",
+                "parameters": [
+                    {
+                        "required": True,
+                        "schema": {
+                            "title": "Item Id",
+                            "maximum": 3.0,
+                            "type": "number",
+                        },
+                        "name": "item_id",
+                        "in": "path",
+                    }
+                ],
+            }
+        },
+        "/path/ma-param-lt-gt/{item_id}": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                    },
+                },
+                "summary": "Get Path Ma Param Lt Gt",
+                "operationId": "get_path_ma_param_lt_gt_path_ma_param_lt_gt__item_id__get",
+                "parameters": [
+                    {
+                        "required": True,
+                        "schema": {
+                            "title": "Item Id",
+                            "exclusiveMaximum": 3.0,
+                            "exclusiveMinimum": 1.0,
+                            "type": "number",
+                        },
+                        "name": "item_id",
+                        "in": "path",
+                    }
+                ],
+            }
+        },
+        "/path/ma-param-le-ge/{item_id}": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                    },
+                },
+                "summary": "Get Path Ma Param Le Ge",
+                "operationId": "get_path_ma_param_le_ge_path_ma_param_le_ge__item_id__get",
+                "parameters": [
+                    {
+                        "required": True,
+                        "schema": {
+                            "title": "Item Id",
+                            "maximum": 3.0,
+                            "minimum": 1.0,
+                            "type": "number",
+                        },
+                        "name": "item_id",
+                        "in": "path",
+                    }
+                ],
+            }
+        },
+        "/path/ma-param-lt-int/{item_id}": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                    },
+                },
+                "summary": "Get Path Ma Param Lt Int",
+                "operationId": "get_path_ma_param_lt_int_path_ma_param_lt_int__item_id__get",
+                "parameters": [
+                    {
+                        "required": True,
+                        "schema": {
+                            "title": "Item Id",
+                            "exclusiveMaximum": 3,
+                            "type": "integer",
+                        },
+                        "name": "item_id",
+                        "in": "path",
+                    }
+                ],
+            }
+        },
+        "/path/ma-param-gt-int/{item_id}": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                    },
+                },
+                "summary": "Get Path Ma Param Gt Int",
+                "operationId": "get_path_ma_param_gt_int_path_ma_param_gt_int__item_id__get",
+                "parameters": [
+                    {
+                        "required": True,
+                        "schema": {
+                            "title": "Item Id",
+                            "exclusiveMinimum": 3,
+                            "type": "integer",
+                        },
+                        "name": "item_id",
+                        "in": "path",
+                    }
+                ],
+            }
+        },
+        "/path/ma-param-le-int/{item_id}": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                    },
+                },
+                "summary": "Get Path Ma Param Le Int",
+                "operationId": "get_path_ma_param_le_int_path_ma_param_le_int__item_id__get",
+                "parameters": [
+                    {
+                        "required": True,
+                        "schema": {
+                            "title": "Item Id",
+                            "maximum": 3,
+                            "type": "integer",
+                        },
+                        "name": "item_id",
+                        "in": "path",
+                    }
+                ],
+            }
+        },
+        "/path/ma-param-ge-int/{item_id}": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                    },
+                },
+                "summary": "Get Path Ma Param Ge Int",
+                "operationId": "get_path_ma_param_ge_int_path_ma_param_ge_int__item_id__get",
+                "parameters": [
+                    {
+                        "required": True,
+                        "schema": {
+                            "title": "Item Id",
+                            "minimum": 3,
+                            "type": "integer",
+                        },
+                        "name": "item_id",
+                        "in": "path",
+                    }
+                ],
+            }
+        },
+        "/path/ma-param-lt-gt-int/{item_id}": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                    },
+                },
+                "summary": "Get Path Ma Param Lt Gt Int",
+                "operationId": "get_path_ma_param_lt_gt_int_path_ma_param_lt_gt_int__item_id__get",
+                "parameters": [
+                    {
+                        "required": True,
+                        "schema": {
+                            "title": "Item Id",
+                            "exclusiveMaximum": 3,
+                            "exclusiveMinimum": 1,
+                            "type": "integer",
+                        },
+                        "name": "item_id",
+                        "in": "path",
+                    }
+                ],
+            }
+        },
+        "/path/ma-param-le-ge-int/{item_id}": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                    },
+                },
+                "summary": "Get Path Ma Param Le Ge Int",
+                "operationId": "get_path_ma_param_le_ge_int_path_ma_param_le_ge_int__item_id__get",
+                "parameters": [
+                    {
+                        "required": True,
+                        "schema": {
+                            "title": "Item Id",
+                            "maximum": 3,
+                            "minimum": 1,
                             "type": "integer",
                         },
                         "name": "item_id",

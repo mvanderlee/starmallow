@@ -1,5 +1,10 @@
+import datetime as dt
 import http
+from decimal import Decimal
 from typing import FrozenSet, Optional
+from uuid import UUID
+
+from marshmallow.validate import Length, Range, Regexp
 
 from starmallow import Path, Query, StarMallow
 
@@ -18,16 +23,21 @@ def non_decorated_route():
 app.add_api_route("/non_decorated_route", non_decorated_route)
 
 
+# Tests no input, and no annotated response
 @app.get("/text")
 def get_text():
     return "Hello World"
 
 
+# Test input that matches path param with no annotated response
 @app.get("/path/{item_id}")
 def get_id(item_id):
     return item_id
 
 
+#########################################################
+# Test all supported types
+#########################################################
 @app.get("/path/str/{item_id}")
 def get_str_id(item_id: str):
     return item_id
@@ -48,6 +58,39 @@ def get_bool_id(item_id: bool):
     return item_id
 
 
+@app.get("/path/date/{item_id}")
+def get_date_id(item_id: dt.date):
+    return item_id
+
+
+@app.get("/path/datetime/{item_id}")
+def get_datetime_id(item_id: dt.datetime):
+    return item_id
+
+
+@app.get("/path/time/{item_id}")
+def get_time_id(item_id: dt.time):
+    return item_id
+
+
+@app.get("/path/timedelta/{item_id}")
+def get_timedelta_id(item_id: dt.timedelta):
+    return item_id
+
+
+@app.get("/path/uuid/{item_id}")
+def get_uuid_id(item_id: UUID):
+    return item_id
+
+
+@app.get("/path/decimal/{item_id}")
+def get_decimal_id(item_id: Decimal):
+    return item_id
+
+
+#########################################################
+# Test Path parameters
+#########################################################
 @app.get("/path/param/{item_id}")
 def get_path_param_id(item_id: str = Path()):
     return item_id
@@ -58,6 +101,24 @@ def get_path_param_required_id(item_id: str = Path()):
     return item_id
 
 
+@app.get("/path/param-deprecated/{item_id}")
+def get_path_param_deprecated_id(item_id: str = Path(deprecated=True)):
+    return item_id
+
+
+@app.get("/path/param-exclude/{item_id}")
+def get_path_param_exclude_id(item_id: str = Path(include_in_schema=False)):
+    return item_id
+
+
+@app.get("/path/param-title/{item_id}")
+def get_path_param_title_id(item_id: str = Path(title='Custom Item Title')):
+    return item_id
+
+
+#########################################################
+# Test Convience validators
+#########################################################
 @app.get("/path/param-minlength/{item_id}")
 def get_path_param_min_length(item_id: str = Path(min_length=3)):
     return item_id
@@ -70,6 +131,11 @@ def get_path_param_max_length(item_id: str = Path(max_length=3)):
 
 @app.get("/path/param-min_maxlength/{item_id}")
 def get_path_param_min_max_length(item_id: str = Path(max_length=3, min_length=2)):
+    return item_id
+
+
+@app.get("/path/param-regex/{item_id}")
+def get_path_param_regex(item_id: str = Path(regex='colou?r')):
     return item_id
 
 
@@ -143,6 +209,102 @@ def get_path_param_le_ge_int(item_id: int = Path(le=3, ge=1)):
     return item_id
 
 
+#########################################################
+# Test Marshmallow validators
+#########################################################
+@app.get("/path/ma-param-minlength/{item_id}")
+def get_path_ma_param_min_length(item_id: str = Path(validators=Length(min=3))):
+    return item_id
+
+
+@app.get("/path/ma-param-maxlength/{item_id}")
+def get_path_ma_param_max_length(item_id: str = Path(validators=Length(max=3))):
+    return item_id
+
+
+@app.get("/path/ma-param-regex/{item_id}")
+def get_path_ma_param_regex(item_id: str = Path(validators=Regexp('colou?r'))):
+    return item_id
+
+
+@app.get("/path/ma-param-min_maxlength/{item_id}")
+def get_path_ma_param_min_max_length(item_id: str = Path(validators=Length(min=2, max=3))):
+    return item_id
+
+
+@app.get("/path/ma-param-gt/{item_id}")
+def get_path_ma_param_gt(item_id: float = Path(validators=Range(min=3.0, min_inclusive=False))):
+    return item_id
+
+
+@app.get("/path/ma-param-gt0/{item_id}")
+def get_path_ma_param_gt0(item_id: float = Path(validators=Range(min=0.0, min_inclusive=False))):
+    return item_id
+
+
+@app.get("/path/ma-param-ge/{item_id}")
+def get_path_ma_param_ge(item_id: float = Path(validators=Range(min=3.0))):
+    return item_id
+
+
+@app.get("/path/ma-param-lt/{item_id}")
+def get_path_ma_param_lt(item_id: float = Path(validators=Range(max=3.0, max_inclusive=False))):
+    return item_id
+
+
+@app.get("/path/ma-param-lt0/{item_id}")
+def get_path_ma_param_lt0(item_id: float = Path(validators=Range(max=0.0, max_inclusive=False))):
+    return item_id
+
+
+@app.get("/path/ma-param-le/{item_id}")
+def get_path_ma_param_le(item_id: float = Path(validators=Range(max=3.0))):
+    return item_id
+
+
+@app.get("/path/ma-param-lt-gt/{item_id}")
+def get_path_ma_param_lt_gt(item_id: float = Path(validators=Range(min=1.0, max=3.0, min_inclusive=False, max_inclusive=False))):
+    return item_id
+
+
+@app.get("/path/ma-param-le-ge/{item_id}")
+def get_path_ma_param_le_ge(item_id: float = Path(validators=Range(min=1.0, max=3.0))):
+    return item_id
+
+
+@app.get("/path/ma-param-lt-int/{item_id}")
+def get_path_ma_param_lt_int(item_id: int = Path(validators=Range(max=3, max_inclusive=False))):
+    return item_id
+
+
+@app.get("/path/ma-param-gt-int/{item_id}")
+def get_path_ma_param_gt_int(item_id: int = Path(validators=Range(min=3, min_inclusive=False))):
+    return item_id
+
+
+@app.get("/path/ma-param-le-int/{item_id}")
+def get_path_ma_param_le_int(item_id: int = Path(validators=Range(max=3))):
+    return item_id
+
+
+@app.get("/path/ma-param-ge-int/{item_id}")
+def get_path_ma_param_ge_int(item_id: int = Path(validators=Range(min=3))):
+    return item_id
+
+
+@app.get("/path/ma-param-lt-gt-int/{item_id}")
+def get_path_ma_param_lt_gt_int(item_id: int = Path(validators=Range(min=1, max=3, min_inclusive=False, max_inclusive=False))):
+    return item_id
+
+
+@app.get("/path/ma-param-le-ge-int/{item_id}")
+def get_path_ma_param_le_ge_int(item_id: int = Path(validators=Range(min=1, max=3))):
+    return item_id
+
+
+#########################################################
+#
+#########################################################
 @app.get("/query")
 def get_query(query):
     return f"foo bar {query}"

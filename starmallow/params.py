@@ -66,8 +66,13 @@ class Param:
         if regex is not None:
             self.validators.append(Regexp(regex))
 
-        if validators and is_iterable_but_not_string(validators):
-            self.validators += validators
+        if validators:
+            if is_iterable_but_not_string(validators):
+                self.validators += validators
+            elif callable(validators):
+                self.validators.append(validators)
+            else:
+                raise ValueError('Validators must be a callable or list of callables')
 
         if self.model and getattr(self.model, 'validators', None) and self.validators:
             logger.warning('Provided validators will override model validators')

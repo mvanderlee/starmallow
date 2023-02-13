@@ -203,9 +203,12 @@ class EndpointMixin:
                 else parameter.name.title().replace('_', ' ')
             )
         }
-        # Ensure we pass the validators into the marshmallow field
-        if isinstance(parameter.default, Param) and parameter.default.validators:
-            kwargs['validate'] = parameter.default.validators
+        # Ensure we pass parameter fields into the marshmallow field
+        if isinstance(parameter.default, Param):
+            if parameter.default.validators:
+                kwargs['validate'] = parameter.default.validators
+            if parameter.default.deprecated:
+                kwargs['deprecated'] = parameter.default.deprecated
 
         if is_optional(model):
             kwargs.update({
