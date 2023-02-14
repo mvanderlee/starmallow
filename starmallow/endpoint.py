@@ -148,21 +148,22 @@ class SchemaModel(ma.Schema):
         schema: ma.Schema,
         load_default: Any = missing_,
         required: bool = True,
-        title: str = None,
+        metadata: Dict[str, Any] = None,
         **kwargs,
     ) -> None:
         self.schema = schema
         self.load_default = load_default
         self.required = required
-        self.title = title
+        self.title = metadata.get('title')
+        self.metadata = metadata
         self.kwargs = kwargs
 
         if not getattr(schema.Meta, "title", None):
             if schema.Meta is ma.Schema.Meta:
                 # Don't override global Meta object's title
-                schema.Meta = SchemaMeta(title)
+                schema.Meta = SchemaMeta(self.title)
             else:
-                schema.Meta.title = title
+                schema.Meta.title = self.title
 
     def to_nested(self):
         return mf.Nested(
@@ -197,18 +198,20 @@ class EndpointMixin:
 
         kwargs = {
             'required': True,
-            'title': (
-                parameter.default.title
-                if (isinstance(parameter.default, Param) and parameter.default.title)
-                else parameter.name.title().replace('_', ' ')
-            )
+            'metadata': {
+                'title': (
+                    parameter.default.title
+                    if (isinstance(parameter.default, Param) and parameter.default.title)
+                    else parameter.name.title().replace('_', ' ')
+                )
+            }
         }
         # Ensure we pass parameter fields into the marshmallow field
         if isinstance(parameter.default, Param):
             if parameter.default.validators:
                 kwargs['validate'] = parameter.default.validators
             if parameter.default.deprecated:
-                kwargs['deprecated'] = parameter.default.deprecated
+                kwargs['metadata']['deprecated'] = parameter.default.deprecated
 
         if is_optional(model):
             kwargs.update({
@@ -255,7 +258,7 @@ class EndpointMixin:
 
             model.required = kwargs['required']
             model.load_default = kwargs.get('load_default', ma.missing)
-            model.metadata['title'] = kwargs.get('title')
+            model.metadata.update(kwargs['metadata'])
 
             return model
         else:
@@ -272,6 +275,10 @@ class EndpointMixin:
         path_param_names = get_path_param_names(path)
         params = {param_type: {} for param_type in ParamType}
         for name, parameter in inspect.signature(endpoint).parameters.items():
+            if name == 'self' and '.' in endpoint.__qualname__:
+                # Skip 'self' in APIHTTPEndpoint functions
+                continue
+
             model = self._get_param_model(parameter)
             model.name = name
 

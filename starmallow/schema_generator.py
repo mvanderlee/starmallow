@@ -1,6 +1,7 @@
 import http.client
 import inspect
 import itertools
+import re
 import warnings
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Sequence, Set, Type
@@ -265,7 +266,7 @@ class SchemaGenerator(BaseSchemaGenerator):
     def _generate_openapi_summary(self, route: APIRoute) -> str:
         if route.summary:
             return route.summary
-        return route.name.replace("_", " ").title()
+        return re.sub(r"(\w)([A-Z])", r"\1 \2", route.name).replace(".", " ").replace("_", " ").title()
 
     def _get_route_openapi_metadata(self, route: APIRoute) -> Dict[str, Any]:
         schema = {}

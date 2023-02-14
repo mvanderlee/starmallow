@@ -1,7 +1,7 @@
 import inspect
 import re
 from dataclasses import is_dataclass
-from typing import TYPE_CHECKING, Any, Dict, Generic, Set, Tuple, Type, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Generic, Set, Tuple, Type, Union
 
 import dpath.util
 import marshmallow as ma
@@ -148,3 +148,9 @@ def get_value_or_default(
         if not isinstance(item, DefaultPlaceholder):
             return item
     return first_item
+
+
+def get_name(endpoint: Callable) -> str:
+    if inspect.isroutine(endpoint) or inspect.isclass(endpoint):
+        return endpoint.__qualname__
+    return endpoint.__class__.__name__

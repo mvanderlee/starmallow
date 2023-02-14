@@ -15,17 +15,20 @@ from starlette.datastructures import FormData, Headers, QueryParams
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
-from starlette.routing import BaseRoute, compile_path, get_name, request_response
+from starlette.routing import BaseRoute, compile_path, request_response
 
 from starmallow.constants import STATUS_CODES_WITH_NO_BODY
 from starmallow.datastructures import Default, DefaultPlaceholder
+from starmallow.decorators import EndpointOptions
 from starmallow.endpoint import EndpointMixin, EndpointModel
+from starmallow.endpoints import APIHTTPEndpoint
 from starmallow.exceptions import RequestValidationError
 from starmallow.params import Param
 from starmallow.types import DecoratedCallable
 from starmallow.utils import (
     create_response_model,
     generate_unique_id,
+    get_name,
     get_value_or_default,
     is_body_allowed_for_status_code,
 )
@@ -371,7 +374,7 @@ class APIRouter(routing.Router):
     def add_api_route(
         self,
         path: str,
-        endpoint: Callable[..., Any],
+        endpoint: Union[Callable[..., Any], APIHTTPEndpoint],
         *,
         methods: Optional[Union[Set[str], List[str]]] = None,
         name: str = None,
@@ -400,28 +403,68 @@ class APIRouter(routing.Router):
         if tags:
             current_tags.extend(tags)
 
-        route = APIRoute(
-            path,
-            endpoint,
-            methods=methods,
-            name=name,
-            include_in_schema=include_in_schema and self.include_in_schema,
-            status_code=status_code,
-            deprecated=deprecated or self.deprecated,
-            response_model=response_model,
-            response_class=response_class,
-            summary=summary,
-            description=description,
-            response_description=response_description,
-            responses=responses,
-            callbacks=callbacks,
-            operation_id=operation_id,
-            generate_unique_id_function=generate_unique_id_function,
-            openapi_extra=openapi_extra,
-            tags=current_tags,
-        )
+        if isinstance(endpoint, type(APIHTTPEndpoint)):
+            # Ensure the functions are bound to a class instance
+            # Currently all routes will share the same instance
+            endpoint = endpoint()
 
-        self.routes.append(route)
+            for method in endpoint.methods:
+                endpoint_function = getattr(endpoint, method.lower())
+                if hasattr(endpoint_function, 'endpoint_options'):
+                    endpoint_options = endpoint_function.endpoint_options
+                else:
+                    endpoint_options = EndpointOptions()
+
+                method_tags = current_tags.copy()
+                if endpoint_options.tags:
+                    method_tags.extend(endpoint_options.tags)
+
+                route = APIRoute(
+                    path,
+                    endpoint_function,
+                    methods=[method],
+                    name=endpoint_options.name or name,
+                    include_in_schema=endpoint_options.include_in_schema and include_in_schema and self.include_in_schema,
+                    status_code=endpoint_options.status_code or status_code,
+                    deprecated=endpoint_options.deprecated or deprecated or self.deprecated,
+                    response_model=endpoint_options.response_model or response_model,
+                    response_class=endpoint_options.response_class or response_class,
+                    summary=endpoint_options.summary or summary,
+                    description=endpoint_options.description or description,
+                    response_description=endpoint_options.response_description or response_description,
+                    responses=endpoint_options.responses or responses,
+                    callbacks=endpoint_options.callbacks or callbacks,
+                    operation_id=endpoint_options.operation_id or operation_id,
+                    generate_unique_id_function=endpoint_options.generate_unique_id_function or generate_unique_id_function,
+                    openapi_extra=endpoint_options.openapi_extra or openapi_extra,
+                    tags=method_tags,
+                )
+
+                self.routes.append(route)
+
+        else:
+            route = APIRoute(
+                path,
+                endpoint,
+                methods=methods,
+                name=name,
+                include_in_schema=include_in_schema and self.include_in_schema,
+                status_code=status_code,
+                deprecated=deprecated or self.deprecated,
+                response_model=response_model,
+                response_class=response_class,
+                summary=summary,
+                description=description,
+                response_description=response_description,
+                responses=responses,
+                callbacks=callbacks,
+                operation_id=operation_id,
+                generate_unique_id_function=generate_unique_id_function,
+                openapi_extra=openapi_extra,
+                tags=current_tags,
+            )
+
+            self.routes.append(route)
 
     def api_route(
         self,

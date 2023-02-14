@@ -27,6 +27,7 @@ from starlette.types import Receive, Scope, Send
 
 from starmallow.datastructures import Default
 from starmallow.docs import get_redoc_html, get_swagger_ui_html, get_swagger_ui_oauth2_redirect_html
+from starmallow.endpoints import APIHTTPEndpoint
 from starmallow.exception_handlers import (
     http_exception_handler,
     request_validation_exception_handler,
@@ -200,7 +201,7 @@ class StarMallow(Starlette):
     def add_api_route(
         self,
         path: str,
-        endpoint: Callable[..., Any],
+        endpoint: Union[Callable[..., Any], APIHTTPEndpoint],
         *,
         methods: Optional[Union[Set[str], List[str]]] = None,
         name: str = None,
