@@ -74,6 +74,7 @@ class OpenAPIConverter(ApiSpecOpenAPIConverter):
         )
         self.add_attribute_function(self.field2title)
         self.add_attribute_function(self.field2uniqueItems)
+        self.add_attribute_function(self.field2enum)
 
     # Overriding to add exclusiveMinimum and exclusiveMaximum support
     def field2range(self: FieldConverterMixin, field: mf.Field, ret) -> dict:
@@ -161,9 +162,7 @@ class OpenAPIConverter(ApiSpecOpenAPIConverter):
 
         return ret
 
-    def field2uniqueItems(
-        self: FieldConverterMixin, field: mf.Field, **kwargs: Any
-    ) -> dict:
+    def field2uniqueItems(self: FieldConverterMixin, field: mf.Field, **kwargs: Any) -> dict:
         ret = {}
 
         # If this type isn't directly in the field mapping then check the
@@ -172,6 +171,20 @@ class OpenAPIConverter(ApiSpecOpenAPIConverter):
             # FastAPI compatibility. This is part of the JSON Schema spec
             if field_class == collection_field.Set:
                 ret['uniqueItems'] = True
+
+        return ret
+
+    def field2enum(self: FieldConverterMixin, field: mf.Field, **kwargs: Any) -> dict:
+        ret = {}
+
+        if isinstance(field, mf.Enum):
+            if field.by_value:
+                choices = [x.value for x in field.enum]
+            else:
+                choices = list(field.enum.__members__)
+
+            if choices:
+                ret['enum'] = choices
 
         return ret
 

@@ -5,6 +5,7 @@ import logging
 import uuid
 from dataclasses import dataclass, field
 from decimal import Decimal
+from enum import Enum
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -27,7 +28,9 @@ import marshmallow as ma
 import marshmallow.fields as mf
 import marshmallow_dataclass.collection_field as collection_field
 from marshmallow.utils import missing as missing_
+from marshmallow.validate import Equal, OneOf
 from starlette.responses import JSONResponse, Response
+from typing_inspect import is_final_type, is_generic_type, is_literal_type
 
 from starmallow.params import Body, Cookie, Form, Header, Param, ParamType, Path, Query
 from starmallow.utils import (
@@ -80,6 +83,29 @@ PY_ITERABLES = [
 def get_native_py_model(model: Any, **kwargs) -> mf.Field:
     if model in PY_TO_MF_MAPPING:
         return PY_TO_MF_MAPPING[model](**kwargs)
+
+    if is_literal_type(model):
+        arguments = get_args(model)
+        return mf.Raw(
+            validate=(
+                Equal(arguments[0])
+                if len(arguments) == 1
+                else OneOf(arguments)
+            ),
+            **kwargs,
+        )
+
+    if is_final_type(model):
+        arguments = get_args(model)
+        if arguments:
+            subtyp = arguments[0]
+        else:
+            subtyp = Any
+        return get_native_py_model(subtyp, **kwargs)
+
+    # enumerations
+    if not is_generic_type(model) and issubclass(model, Enum):
+        return mf.Enum(model, **kwargs)
 
     origin = get_origin(model)
     if origin not in PY_ITERABLES:
