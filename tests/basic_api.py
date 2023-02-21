@@ -1,14 +1,21 @@
 import datetime as dt
 import http
 from decimal import Decimal
-from typing import FrozenSet, Optional
+from enum import Enum
+from typing import Final, FrozenSet, Literal, Optional
 from uuid import UUID
 
 from marshmallow.validate import Length, Range, Regexp
+from marshmallow_dataclass import dataclass as ma_dataclass
 
 from starmallow import Path, Query, StarMallow
 
 app = StarMallow()
+
+
+class MyEnum(Enum):
+    optionA = 'optionA'
+    optionB = 'optionB'
 
 
 @app.api_route("/api_route")
@@ -85,6 +92,27 @@ def get_uuid_id(item_id: UUID):
 
 @app.get("/path/decimal/{item_id}")
 def get_decimal_id(item_id: Decimal):
+    return item_id
+
+
+@app.get("/path/enum/{item_id}")
+def get_enum_id(item_id: MyEnum):
+    return item_id
+
+
+@app.get("/path/literal/{item_id}")
+def get_literal_id(item_id: Literal['alpha', 'beta']):
+    return item_id
+
+
+# Final can only be used inside a class, not as a function argument
+@ma_dataclass
+class FinalItem:
+    item_id: Final[int] = 10
+
+
+@app.get("/path/final/{item_id}")
+def get_final_id(item_id: FinalItem = Path()):
     return item_id
 
 

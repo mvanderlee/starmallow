@@ -375,6 +375,99 @@ openapi_schema = {
                 ],
             }
         },
+        "/path/enum/{item_id}": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                    },
+                },
+                "summary": "Get Enum Id",
+                "operationId": "get_enum_id_path_enum__item_id__get",
+                "parameters": [
+                    {
+                        "required": True,
+                        "schema": {"title": "Item Id", "enum": ["optionA", "optionB"]},
+                        "name": "item_id",
+                        "in": "path",
+                    }
+                ],
+            }
+        },
+        "/path/literal/{item_id}": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                    },
+                },
+                "summary": "Get Literal Id",
+                "operationId": "get_literal_id_path_literal__item_id__get",
+                "parameters": [
+                    {
+                        "required": True,
+                        "schema": {"title": "Item Id", "enum": ["alpha", "beta"]},
+                        "name": "item_id",
+                        "in": "path",
+                    }
+                ],
+            }
+        },
+        "/path/final/{item_id}": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                    },
+                },
+                "summary": "Get Final Id",
+                "operationId": "get_final_id_path_final__item_id__get",
+                "parameters": [
+                    {
+                        "required": True,
+                        "schema": {
+                            'allOf': [{'$ref': '#/components/schemas/FinalItem'}],
+                            "title": "Item Id"
+                        },
+                        "name": "item_id",
+                        "in": "path",
+                    }
+                ],
+            }
+        },
         "/path/param/{item_id}": {
             "get": {
                 "responses": {
@@ -2065,6 +2158,17 @@ openapi_schema = {
                 'title': 'HTTPValidationError',
                 'type': 'object',
             },
+            'FinalItem': {
+                'properties': {
+                    'item_id': {
+                        'default': 10,
+                        'title': 'Item Id',
+                        'type': 'integer'
+                    }
+                },
+                'title': 'Item Id',
+                'type': 'object'
+            }
         }
     },
 }
