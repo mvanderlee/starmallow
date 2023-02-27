@@ -235,6 +235,9 @@ class SchemaGenerator(BaseSchemaGenerator):
                 additional_status_code,
                 additional_response,
             ) in route.responses.items():
+                assert isinstance(
+                    additional_response, dict
+                ), "An additional response must be a dict"
                 process_response = additional_response.copy()
                 process_response.pop("model", None)
                 status_code_key = str(additional_status_code).upper()
@@ -243,9 +246,6 @@ class SchemaGenerator(BaseSchemaGenerator):
                 openapi_response = operation_responses.setdefault(
                     status_code_key, {}
                 )
-                assert isinstance(
-                    process_response, dict
-                ), "An additional response must be a dict"
                 field = route.response_fields.get(additional_status_code)
                 additional_field_schema: Optional[Dict[str, Any]] = None
                 if field:
