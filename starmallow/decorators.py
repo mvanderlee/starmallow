@@ -2,10 +2,11 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type, Union
 
-from starlette.responses import JSONResponse, Response
+from starlette.responses import Response
 from starlette.routing import BaseRoute
 
 from starmallow.datastructures import Default
+from starmallow.responses import JSONResponse
 from starmallow.types import DecoratedCallable
 from starmallow.utils import generate_unique_id
 

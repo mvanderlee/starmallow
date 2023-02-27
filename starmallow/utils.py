@@ -1,36 +1,43 @@
+import collections.abc
+import datetime as dt
 import inspect
+import logging
 import re
+import uuid
+import warnings
 from dataclasses import is_dataclass
-from typing import TYPE_CHECKING, Any, Callable, Dict, Generic, Set, Tuple, Type, Union
+from decimal import Decimal
+from enum import Enum
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    FrozenSet,
+    List,
+    Mapping,
+    Sequence,
+    Set,
+    Tuple,
+    Type,
+    Union,
+    get_args,
+    get_origin,
+)
 
 import dpath.util
 import marshmallow as ma
 import marshmallow.fields as mf
 import marshmallow_dataclass.collection_field as collection_field
+from marshmallow.validate import Equal, OneOf
+from typing_inspect import is_final_type, is_generic_type, is_literal_type
 
 from starmallow.datastructures import DefaultPlaceholder, DefaultType
 
 if TYPE_CHECKING:  # pragma: nocover
     from starmallow.routing import APIRoute
 
-# Python >= 3.8  - Source: https://stackoverflow.com/a/58841311/3776765
-try:
-    from typing import get_args, get_origin
-# Compatibility
-except ImportError:
-    get_args = lambda t: getattr(t, '__args__', ()) if t is not Generic else Generic
-    get_origin = lambda t: getattr(t, '__origin__', None)
-
-
-MARSHMALLOW_ITERABLES: Tuple[mf.Field] = (
-    mf.Dict,
-    mf.List,
-    mf.Mapping,
-    mf.Tuple,
-    collection_field.Sequence,
-    collection_field.Set,
-)
-
+logger = logging.getLogger(__name__)
 
 status_code_ranges: Dict[str, str] = {
     "1XX": "Information",
@@ -41,8 +48,125 @@ status_code_ranges: Dict[str, str] = {
     "DEFAULT": "Default Response",
 }
 
+MARSHMALLOW_ITERABLES: Tuple[mf.Field] = (
+    mf.Dict,
+    mf.List,
+    mf.Mapping,
+    mf.Tuple,
+    collection_field.Sequence,
+    collection_field.Set,
+)
 
-def is_body_allowed_for_status_code(status_code: Union[int, str, None]) -> bool:
+PY_TO_MF_MAPPING = {
+    int: mf.Integer,
+    float: mf.Float,
+    bool: mf.Boolean,
+    str: mf.String,
+    Decimal: mf.Decimal,
+    dt.date: mf.Date,
+    dt.datetime: mf.DateTime,
+    dt.time: mf.Time,
+    dt.timedelta: mf.TimeDelta,
+    uuid.UUID: mf.UUID,
+}
+
+PY_ITERABLES = [
+    list,
+    List,
+    collections.abc.Sequence,
+    Sequence,
+    tuple,
+    Tuple,
+    set,
+    Set,
+    frozenset,
+    FrozenSet,
+    dict,
+    Dict,
+    collections.abc.Mapping,
+    Mapping,
+]
+
+
+def get_model_field(model: Any, **kwargs) -> mf.Field:
+    if model == inspect._empty:
+        return None
+
+    if is_marshmallow_dataclass(model):
+        model = model.Schema
+
+    if is_marshmallow_schema(model):
+        return mf.Nested(model if isinstance(model, ma.Schema) else model())
+
+    if is_marshmallow_field(model):
+        return model if isinstance(model, mf.Field) else model()
+
+    # Native Python handling
+    if model in PY_TO_MF_MAPPING:
+        return PY_TO_MF_MAPPING[model](**kwargs)
+
+    if is_literal_type(model):
+        arguments = get_args(model)
+        return mf.Raw(
+            validate=(
+                Equal(arguments[0])
+                if len(arguments) == 1
+                else OneOf(arguments)
+            ),
+            **kwargs,
+        )
+
+    if is_final_type(model):
+        arguments = get_args(model)
+        if arguments:
+            subtyp = arguments[0]
+        else:
+            subtyp = Any
+        return get_model_field(subtyp, **kwargs)
+
+    # enumerations
+    if not is_generic_type(model) and issubclass(model, Enum):
+        return mf.Enum(model, **kwargs)
+
+    origin = get_origin(model)
+    if origin not in PY_ITERABLES:
+        raise Exception(f'Unknown model type, model is {model}')
+
+    arguments = get_args(model)
+    if origin in (list, List):
+        child_type = get_model_field(arguments[0])
+        return mf.List(child_type, **kwargs)
+
+    if origin in (collections.abc.Sequence, Sequence) or (
+        origin in (tuple, Tuple)
+        and len(arguments) == 2
+        and arguments[1] is Ellipsis
+    ):
+        child_type = get_model_field(arguments[0])
+        return collection_field.Sequence(child_type, **kwargs)
+
+    if origin in (set, Set):
+        child_type = get_model_field(arguments[0])
+        return collection_field.Set(child_type, frozen=False, **kwargs)
+
+    if origin in (frozenset, FrozenSet):
+        child_type = get_model_field(arguments[0])
+        return collection_field.Set(child_type, frozen=True, **kwargs)
+
+    if origin in (tuple, Tuple):
+        child_types = (
+            get_model_field(arg)
+            for arg in arguments
+        )
+        return mf.Tuple(child_types, **kwargs)
+
+    if origin in (dict, Dict, collections.abc.Mapping, Mapping):
+        key_type = get_model_field(arguments[0])
+        value_type = get_model_field(arguments[1])
+        return mf.Dict(keys=key_type, values=value_type, **kwargs)
+
+
+def is_body_allowed_for_status_code(status_code: int | str | None) -> bool:
     if status_code is None:
         return True
     # Ref: https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.1.0.md#patterned-fields-1
@@ -125,17 +249,20 @@ def deep_dict_update(main_dict: Dict[Any, Any], update_dict: Dict[Any, Any]) -> 
             main_dict[key] = value
 
 
-def create_response_model(type_: Type[Any]) -> ma.Schema | None:
-    if is_marshmallow_dataclass(type_):
-        type_ = type_.Schema
+def create_response_model(type_: Type[Any]) -> ma.Schema | mf.Field | None:
+    field = get_model_field(type_)
+    if field is not None:
+        return field
+    else:
+        warnings.warn(f"Can't create response model for {type_}")
 
-    return type_() if is_marshmallow_schema(type_) else None
+        return None
 
 
 def get_value_or_default(
-    first_item: Union[DefaultPlaceholder, DefaultType],
-    *extra_items: Union[DefaultPlaceholder, DefaultType],
-) -> Union[DefaultPlaceholder, DefaultType]:
+    first_item: DefaultPlaceholder | DefaultType,
+    *extra_items: DefaultPlaceholder | DefaultType,
+) -> DefaultPlaceholder | DefaultType:
     """
     Pass items or `DefaultPlaceholder`s by descending priority.
 

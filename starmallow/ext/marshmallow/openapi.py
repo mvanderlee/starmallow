@@ -16,6 +16,27 @@ from marshmallow.utils import is_collection
 
 from starmallow.utils import MARSHMALLOW_ITERABLES
 
+# marshmallow field => (JSON Schema type, format)
+DEFAULT_FIELD_MAPPING = {
+    mf.Integer: ("integer", None),
+    mf.Number: ("number", None),
+    mf.Float: ("number", None),
+    mf.Decimal: ("string", "decimal"),
+    mf.String: ("string", None),
+    mf.Boolean: ("boolean", None),
+    mf.UUID: ("string", "uuid"),
+    mf.DateTime: ("string", "date-time"),
+    mf.Date: ("string", "date"),
+    mf.Time: ("string", None),
+    mf.TimeDelta: ("integer", None),
+    mf.Email: ("string", "email"),
+    mf.URL: ("string", "url"),
+    mf.Dict: ("object", None),
+    mf.Field: (None, None),
+    mf.Raw: (None, None),
+    mf.List: ("array", None),
+}
+
 # Properties that may be defined in a field's metadata that will be added to the output
 # of field2property
 # https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.0.2.md#schemaObject
@@ -60,6 +81,8 @@ _VALID_PREFIX = "x-"
 
 
 class OpenAPIConverter(ApiSpecOpenAPIConverter):
+
+    field_mapping = DEFAULT_FIELD_MAPPING
 
     def __init__(
         self,

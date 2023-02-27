@@ -1,42 +1,32 @@
-import collections.abc
-import datetime as dt
+
 import inspect
 import logging
-import uuid
 from dataclasses import dataclass, field
-from decimal import Decimal
-from enum import Enum
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
     Dict,
-    FrozenSet,
     Iterable,
     List,
     Mapping,
     NewType,
     Optional,
-    Sequence,
-    Set,
-    Tuple,
     Type,
     Union,
 )
 
 import marshmallow as ma
 import marshmallow.fields as mf
-import marshmallow_dataclass.collection_field as collection_field
 from marshmallow.utils import missing as missing_
-from marshmallow.validate import Equal, OneOf
-from starlette.responses import JSONResponse, Response
-from typing_inspect import is_final_type, is_generic_type, is_literal_type
+from starlette.responses import Response
 
 from starmallow.params import Body, Cookie, Form, Header, Param, ParamType, Path, Query
+from starmallow.responses import JSONResponse
 from starmallow.utils import (
     create_response_model,
     get_args,
-    get_origin,
+    get_model_field,
     get_path_param_names,
     is_marshmallow_dataclass,
     is_marshmallow_field,
@@ -48,101 +38,6 @@ if TYPE_CHECKING:
     from starmallow.routing import APIRoute
 
 logger = logging.getLogger(__name__)
-
-PY_TO_MF_MAPPING = {
-    int: mf.Integer,
-    float: mf.Float,
-    bool: mf.Boolean,
-    str: mf.String,
-    Decimal: mf.Decimal,
-    dt.date: mf.Date,
-    dt.datetime: mf.DateTime,
-    dt.time: mf.Time,
-    dt.timedelta: mf.TimeDelta,
-    uuid.UUID: mf.UUID,
-}
-
-PY_ITERABLES = [
-    list,
-    List,
-    collections.abc.Sequence,
-    Sequence,
-    tuple,
-    Tuple,
-    set,
-    Set,
-    frozenset,
-    FrozenSet,
-    dict,
-    Dict,
-    collections.abc.Mapping,
-    Mapping,
-]
-
-
-def get_native_py_model(model: Any, **kwargs) -> mf.Field:
-    if model in PY_TO_MF_MAPPING:
-        return PY_TO_MF_MAPPING[model](**kwargs)
-
-    if is_literal_type(model):
-        arguments = get_args(model)
-        return mf.Raw(
-            validate=(
-                Equal(arguments[0])
-                if len(arguments) == 1
-                else OneOf(arguments)
-            ),
-            **kwargs,
-        )
-
-    if is_final_type(model):
-        arguments = get_args(model)
-        if arguments:
-            subtyp = arguments[0]
-        else:
-            subtyp = Any
-        return get_native_py_model(subtyp, **kwargs)
-
-    # enumerations
-    if not is_generic_type(model) and issubclass(model, Enum):
-        return mf.Enum(model, **kwargs)
-
-    origin = get_origin(model)
-    if origin not in PY_ITERABLES:
-        raise Exception(f'Unknown model type, model is {model}')
-
-    arguments = get_args(model)
-    if origin in (list, List):
-        child_type = get_native_py_model(arguments[0])
-        return mf.List(child_type, **kwargs)
-
-    if origin in (collections.abc.Sequence, Sequence) or (
-        origin in (tuple, Tuple)
-        and len(arguments) == 2
-        and arguments[1] is Ellipsis
-    ):
-        child_type = get_native_py_model(arguments[0])
-        return collection_field.Sequence(child_type, **kwargs)
-
-    if origin in (set, Set):
-        child_type = get_native_py_model(arguments[0])
-        return collection_field.Set(child_type, frozen=False, **kwargs)
-
-    if origin in (frozenset, FrozenSet):
-        child_type = get_native_py_model(arguments[0])
-        return collection_field.Set(child_type, frozen=True, **kwargs)
-
-    if origin in (tuple, Tuple):
-        child_types = (
-            get_native_py_model(arg)
-            for arg in arguments
-        )
-        return mf.Tuple(child_types, **kwargs)
-
-    if origin in (dict, Dict, collections.abc.Mapping, Mapping):
-        key_type = get_native_py_model(arguments[0])
-        value_type = get_native_py_model(arguments[1])
-        return mf.Dict(keys=key_type, values=value_type, **kwargs)
 
 
 @dataclass
@@ -157,7 +52,7 @@ class EndpointModel:
     path: Optional[str] = None
     methods: Optional[List[str]] = None
     call: Optional[Callable[..., Any]] = None
-    response_model: Optional[ma.Schema] = None
+    response_model: Optional[ma.Schema | mf.Field] = None
     response_class: Type[Response] = JSONResponse
     status_code: Optional[int] = None
     route: 'APIRoute' = None
@@ -289,7 +184,7 @@ class EndpointMixin:
             return model
         else:
             try:
-                return get_native_py_model(model, **kwargs)
+                return get_model_field(model, **kwargs)
             except Exception:
                 raise Exception(f'Unknown model type for parameter {parameter.name}, model is {model}')
 

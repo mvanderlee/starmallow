@@ -14,7 +14,7 @@ from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import FormData, Headers, QueryParams
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
-from starlette.responses import JSONResponse, Response
+from starlette.responses import Response
 from starlette.routing import BaseRoute, compile_path, request_response
 
 from starmallow.constants import STATUS_CODES_WITH_NO_BODY
@@ -24,6 +24,7 @@ from starmallow.endpoint import EndpointMixin, EndpointModel
 from starmallow.endpoints import APIHTTPEndpoint
 from starmallow.exceptions import RequestValidationError
 from starmallow.params import Param
+from starmallow.responses import JSONResponse
 from starmallow.types import DecoratedCallable
 from starmallow.utils import (
     create_response_model,
@@ -31,6 +32,8 @@ from starmallow.utils import (
     get_name,
     get_value_or_default,
     is_body_allowed_for_status_code,
+    is_marshmallow_field,
+    is_marshmallow_schema,
 )
 
 logger = logging.getLogger(__name__)
@@ -201,8 +204,10 @@ def get_request_handler(
             return raw_response
 
         response_data = raw_response
-        if endpoint_model.response_model is not None:
+        if is_marshmallow_schema(endpoint_model.response_model):
             response_data = endpoint_model.response_model.dump(raw_response)
+        elif is_marshmallow_field(endpoint_model.response_model):
+            response_data = endpoint_model.response_model._serialize(raw_response, attr='response', obj=raw_response)
 
         response_args = {}
         if endpoint_model.status_code is not None:

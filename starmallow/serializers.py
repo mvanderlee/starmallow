@@ -16,7 +16,7 @@ class JSONEncoder(json.JSONEncoder):
         elif isinstance(obj, set):
             return list(obj)
         elif isinstance(obj, Decimal):
-            return float(obj)
+            return str(obj)
         elif isinstance(obj, (datetime, date)):
             return obj.isoformat()
         elif isinstance(obj, UUID):

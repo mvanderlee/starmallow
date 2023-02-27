@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional, Sequence, Set, Type
 import marshmallow as ma
 import marshmallow.fields as mf
 from apispec import APISpec
-from apispec.ext.marshmallow import SchemaResolver
+from apispec.ext.marshmallow import OpenAPIConverter, SchemaResolver
 # from apispec.ext.marshmallow.openapi import OpenAPIConverter
 from starlette.responses import Response
 from starlette.routing import BaseRoute, Mount, compile_path
@@ -20,19 +20,37 @@ from starmallow.endpoint import EndpointModel, SchemaModel
 from starmallow.ext.marshmallow import MarshmallowPlugin
 from starmallow.responses import HTTPValidationError
 from starmallow.routing import APIRoute
-from starmallow.utils import deep_dict_update, dict_safe_add, status_code_ranges
+from starmallow.utils import (
+    deep_dict_update,
+    dict_safe_add,
+    is_marshmallow_field,
+    status_code_ranges,
+)
 
 
 class SchemaRegistry(dict):
     '''
         Dict that holds all the schemas for each class and lazily resolves them.
     '''
-    def __init__(self, spec: APISpec, resolver: SchemaResolver, *args, **kwargs):
+    def __init__(
+        self,
+        spec: APISpec,
+        converter: OpenAPIConverter,
+        resolver: SchemaResolver,
+        *args,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
         self.spec = spec
+        self.converter = converter
         self.resolver = resolver
 
     def __getitem__(self, item):
+        if is_marshmallow_field(item):
+            # If marshmallow field, just resolve it here without caching
+            prop = self.converter.field2property(item)
+            return prop
+
         if isinstance(item, SchemaModel):
             item = item.schema
 
@@ -81,7 +99,7 @@ class SchemaGenerator(BaseSchemaGenerator):
         self.resolver = marshmallow_plugin.resolver
 
         # Builtin definitions
-        self.schemas = SchemaRegistry(self.spec, self.resolver)
+        self.schemas = SchemaRegistry(self.spec, self.converter, self.resolver)
 
         self.operation_ids: Set[str] = set()
 

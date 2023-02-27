@@ -1,9 +1,9 @@
 
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
-from starlette.responses import JSONResponse
 
 from starmallow.exceptions import RequestValidationError
+from starmallow.responses import JSONResponse
 
 
 async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
