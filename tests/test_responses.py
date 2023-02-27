@@ -150,6 +150,36 @@ def get_path_dict_date_date() -> Dict[dt.date, dt.date]:
 def get_path_list_dataclass() -> List[Item]:
     return [{'item_id': dt.date(2023, 2, 27)}]
 
+
+@app.get("/path/custom_description", response_description='Custom Description')
+def get_path_custom_description() -> str:
+    return 5
+
+
+@app.get(
+    "/path/multi_response",
+    responses={
+        200: {
+            "description": "Custom 200",
+            "model": mf.String(),
+        },
+        201: {
+            "description": "Item Created",
+            "model": Item,
+        },
+        204: {
+            "description": "Item Deleted",
+        },
+        404: {
+            "content": {
+                "text/plain": {}
+            },
+            "description": "Item Not Found",
+        },
+    },
+)
+def get_path_multi_response() -> str:
+    return 5
 # endregion
 
 
@@ -451,6 +481,42 @@ openapi_schema = {
                 "operationId": "get_path_list_dataclass_path_list_dataclass_get",
             }
         },
+        "/path/custom_description": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Custom Description",
+                        "content": {"application/json": {"schema": {"type": "string"}}},
+                    },
+                },
+                "summary": "Get Path Custom Description",
+                "operationId": "get_path_custom_description_path_custom_description_get",
+            }
+        },
+        "/path/multi_response": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Custom 200",
+                        "content": {"application/json": {"schema": {"type": "string"}}},
+                    },
+                    "201": {
+                        "description": "Item Created",
+                        "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Item"}}},
+                    },
+                    "204": {
+                        "description": "Item Deleted",
+                    },
+                    "404": {
+                        "description": "Item Not Found",
+                        "content": {"text/plain": {}},
+                    },
+                },
+                "summary": "Get Path Multi Response",
+                "operationId": "get_path_multi_response_path_multi_response_get",
+            }
+        },
+
     },
     "components": {
         "schemas": {
