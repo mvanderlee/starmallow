@@ -2,6 +2,7 @@ import pytest
 from starlette.testclient import TestClient
 
 from .basic_api import app
+from .utils import assert_json
 
 client = TestClient(app)
 
@@ -2186,7 +2187,7 @@ openapi_schema = {
 def test_get_path(path, expected_status, expected_response):
     response = client.get(path)
     assert response.status_code == expected_status
-    assert response.json() == expected_response
+    assert_json(response.json(), expected_response)
 
 
 def test_swagger_ui():

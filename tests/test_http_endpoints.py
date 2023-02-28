@@ -6,6 +6,8 @@ from starmallow import StarMallow
 from starmallow.decorators import route
 from starmallow.endpoints import APIHTTPEndpoint
 
+from .utils import assert_json
+
 app = StarMallow()
 
 client = TestClient(app)
@@ -257,7 +259,7 @@ openapi_schema = {
 def test_get_path(path, expected_status, expected_response):
     response = client.get(path)
     assert response.status_code == expected_status
-    assert response.json() == expected_response
+    assert_json(response.json(), expected_response)
 
 
 @pytest.mark.parametrize(
@@ -276,6 +278,6 @@ def test_non_operation_methods(fn, expected_response):
     response: Response = fn("/api_route")
     assert response.status_code == 200
     if isinstance(expected_response, dict):
-        assert response.json() == expected_response
+        assert_json(response.json(), expected_response)
     else:
         assert response.content == expected_response

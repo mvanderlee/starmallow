@@ -2,7 +2,6 @@
     Defines custom Marshmallow fields mostly for integrating with marshmallow_dataclass NewType
     This allows us to document them properly in OpenAPI
 '''
-
 import marshmallow.fields as mf
 
 from .delimited_field import DelimitedFieldMixin
@@ -35,5 +34,5 @@ class HttpUrl(mf.Url):
             schemes={'http', 'https'},
             relative=relative,
             require_tld=require_tld,
-            **kwargs
+            **kwargs,
         )

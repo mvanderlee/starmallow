@@ -63,7 +63,7 @@ class SchemaRegistry(dict):
             try:
                 schema = self.spec.components.schemas.__getitem__(schema_class.__name__)
             except KeyError:
-                self.spec.components.schema(component_id=schema_class.__name__, schema=item)
+                self.spec.components.schema(name=schema_class.__name__, schema=item)
 
             schema = self.resolver.resolve_schema_dict(item)
             super().__setitem__(schema_class, schema)

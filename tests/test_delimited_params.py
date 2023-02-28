@@ -4,6 +4,8 @@ from starlette.testclient import TestClient
 from starmallow import Body, Header, StarMallow
 from starmallow.types import DelimitedListInt
 
+from .utils import assert_json
+
 app = StarMallow()
 
 
@@ -236,7 +238,7 @@ openapi_schema = {
 def test_get_path(path, headers, expected_status, expected_response):
     response = client.get(path, headers=headers)
     assert response.status_code == expected_status
-    assert response.json() == expected_response
+    assert_json(response.json(), expected_response)
 
 
 @pytest.mark.parametrize(
@@ -248,5 +250,5 @@ def test_get_path(path, headers, expected_status, expected_response):
 def test_post_path(path, headers, body, expected_status, expected_response):
     response = client.post(path, headers=headers, json=body)
     assert response.status_code == expected_status
-    assert response.json() == expected_response
+    assert_json(response.json(), expected_response)
 # endregion
