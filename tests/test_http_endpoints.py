@@ -39,7 +39,7 @@ class NonOperation(APIHTTPEndpoint):
 
 @app.api_route("/path/str/{item_id}")
 class StringId(APIHTTPEndpoint):
-    def get(self, item_id: str):
+    def get(self, item_id: str) -> str:
         return item_id
 
 
@@ -141,7 +141,7 @@ openapi_schema = {
                 "responses": {
                     "200": {
                         "description": "Successful Response",
-                        "content": {"application/json": {"schema": {}}},
+                        "content": {"application/json": {"schema": {"type": "string"}}},
                     },
                     "422": {
                         "description": "Validation Error",
