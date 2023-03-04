@@ -5,3 +5,4 @@ from .exceptions import RequestValidationError
 from .params import Body, Cookie, Form, Header, Path, Query
 from .responses import HTTPValidationError
 from .routing import APIRoute, APIRouter
+from .websockets import APIWebSocket

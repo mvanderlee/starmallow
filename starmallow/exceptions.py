@@ -11,3 +11,12 @@ class RequestValidationError(HTTPException):
     ) -> None:
         super().__init__(status_code=HTTP_422_UNPROCESSABLE_ENTITY)
         self.errors = errors
+
+
+class WebSocketRequestValidationError(HTTPException):
+    def __init__(
+        self,
+        errors: Dict[str, Union[Any, List, Dict]],
+    ) -> None:
+        super().__init__(status_code=HTTP_422_UNPROCESSABLE_ENTITY)
+        self.errors = errors

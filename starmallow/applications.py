@@ -20,6 +20,7 @@ from starlette.applications import Starlette
 from starlette.datastructures import State
 from starlette.exceptions import HTTPException
 from starlette.middleware import Middleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import HTMLResponse, Response
 from starlette.routing import BaseRoute
@@ -288,6 +289,20 @@ class StarMallow(Starlette):
             openapi_extra=openapi_extra,
             tags=tags,
         )
+
+    def add_api_websocket_route(
+        self, path: str, endpoint: Callable[..., Any], name: Optional[str] = None
+    ) -> None:
+        self.router.add_api_websocket_route(path, endpoint, name=name)
+
+    def websocket(
+        self, path: str, name: Optional[str] = None
+    ) -> Callable[[DecoratedCallable], DecoratedCallable]:
+        def decorator(func: DecoratedCallable) -> DecoratedCallable:
+            self.add_api_websocket_route(path, func, name=name)
+            return func
+
+        return decorator
 
     def include_router(
         self,
@@ -651,3 +666,35 @@ class StarMallow(Starlette):
             openapi_extra=openapi_extra,
             tags=tags,
         )
+
+    def websocket_route(
+        self, path: str, name: Union[str, None] = None
+    ) -> Callable[[DecoratedCallable], DecoratedCallable]:
+        def decorator(func: DecoratedCallable) -> DecoratedCallable:
+            self.router.add_api_websocket_route(path, func, name=name)
+            return func
+
+        return decorator
+
+    def on_event(
+        self, event_type: str
+    ) -> Callable[[DecoratedCallable], DecoratedCallable]:
+        return self.router.on_event(event_type)
+
+    def middleware(
+        self, middleware_type: str
+    ) -> Callable[[DecoratedCallable], DecoratedCallable]:
+        def decorator(func: DecoratedCallable) -> DecoratedCallable:
+            self.add_middleware(BaseHTTPMiddleware, dispatch=func)
+            return func
+
+        return decorator
+
+    def exception_handler(
+        self, exc_class_or_status_code: Union[int, Type[Exception]]
+    ) -> Callable[[DecoratedCallable], DecoratedCallable]:
+        def decorator(func: DecoratedCallable) -> DecoratedCallable:
+            self.add_exception_handler(exc_class_or_status_code, func)
+            return func
+
+        return decorator

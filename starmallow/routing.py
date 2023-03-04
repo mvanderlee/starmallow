@@ -10,19 +10,23 @@ import marshmallow.fields as mf
 from marshmallow.error_store import ErrorStore
 from marshmallow.utils import missing as missing_
 from starlette import routing
+from starlette.background import BackgroundTasks
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import FormData, Headers, QueryParams
 from starlette.exceptions import HTTPException
-from starlette.requests import Request
+from starlette.requests import HTTPConnection, Request
 from starlette.responses import Response
-from starlette.routing import BaseRoute, compile_path, request_response
+from starlette.routing import BaseRoute, Match, compile_path, request_response
+from starlette.status import WS_1008_POLICY_VIOLATION
+from starlette.types import ASGIApp, Receive, Scope, Send
+from starlette.websockets import WebSocket
 
 from starmallow.constants import STATUS_CODES_WITH_NO_BODY
 from starmallow.datastructures import Default, DefaultPlaceholder
 from starmallow.decorators import EndpointOptions
 from starmallow.endpoint import EndpointMixin, EndpointModel
 from starmallow.endpoints import APIHTTPEndpoint
-from starmallow.exceptions import RequestValidationError
+from starmallow.exceptions import RequestValidationError, WebSocketRequestValidationError
 from starmallow.params import Param
 from starmallow.responses import JSONResponse
 from starmallow.types import DecoratedCallable
@@ -35,6 +39,7 @@ from starmallow.utils import (
     is_marshmallow_field,
     is_marshmallow_schema,
 )
+from starmallow.websockets import APIWebSocket
 
 logger = logging.getLogger(__name__)
 
@@ -108,8 +113,10 @@ def request_params_to_args(
 
 
 async def get_request_args(
-    request: Request,
+    request: Request | WebSocket,
     endpoint_model: EndpointModel,
+    background_tasks: Optional[BackgroundTasks] = None,
+    response: Optional[Response] = None,
 ) -> Tuple[Dict[str, Any], Dict[str, Union[Any, List, Dict]]]:
     path_values, path_errors = request_params_to_args(
         request.path_params,
@@ -170,6 +177,21 @@ async def get_request_args(
     if json_errors and json_errors.errors:
         errors['json'] = json_errors.errors
 
+    if response is None:
+        response = Response()
+        del response.headers["content-length"]
+        response.status_code = None  # type: ignore
+
+    for param_name, param_type in endpoint_model.non_field_params.items():
+        if issubclass(param_type, (HTTPConnection, Request, WebSocket)):
+            values[param_name] = request
+        elif issubclass(param_type, Response):
+            values[param_name] = response
+        elif issubclass(param_type, BackgroundTasks):
+            if background_tasks is None:
+                background_tasks = BackgroundTasks()
+            values[param_name] = background_tasks
+
     return values, errors
 
 
@@ -183,6 +205,18 @@ async def run_endpoint_function(
         return await endpoint_model.call(**values)
     else:
         return await run_in_threadpool(endpoint_model.call, **values)
+
+
+def websocket_session(func: Callable) -> ASGIApp:
+    """
+    Takes a coroutine `func(session)`, and returns an ASGI application.
+    """
+
+    async def app(scope: Scope, receive: Receive, send: Send) -> None:
+        session = APIWebSocket(scope, receive=receive, send=send)
+        await func(session)
+
+    return app
 
 
 def get_request_handler(
@@ -218,6 +252,54 @@ def get_request_handler(
         return response
 
     return app
+
+
+def get_websocker_hander(
+    endpoint_model: EndpointModel,
+) -> Callable[[Request], Coroutine[Any, Any, Response]]:
+    assert endpoint_model.call is not None, "dependant.call must be a function"
+
+    async def app(websocket: WebSocket) -> None:
+        values, errors = await get_request_args(websocket, endpoint_model)
+
+        if errors:
+            await websocket.close(code=WS_1008_POLICY_VIOLATION)
+            raise WebSocketRequestValidationError(errors)
+
+        await run_endpoint_function(
+            endpoint_model,
+            values,
+        )
+
+    return app
+
+
+class APIWebSocketRoute(routing.WebSocketRoute, EndpointMixin):
+    def __init__(
+        self,
+        path: str,
+        endpoint: Callable[..., Any],
+        *,
+        name: Optional[str] = None,
+    ) -> None:
+        self.path = path
+        self.endpoint = endpoint
+        self.name = get_name(endpoint) if name is None else name
+        self.path_regex, self.path_format, self.param_convertors = compile_path(path)
+        self.app = websocket_session(
+            get_websocker_hander(self.get_endpoint_model(
+                self.path_format,
+                endpoint,
+                name=name,
+                route=self,
+            ))
+        )
+
+    def matches(self, scope: Scope) -> Tuple[Match, Scope]:
+        match, child_scope = super().matches(scope)
+        if match != Match.NONE:
+            child_scope["route"] = self
+        return match, child_scope
 
 
 class APIRoute(routing.Route, EndpointMixin):
@@ -337,7 +419,7 @@ class APIRoute(routing.Route, EndpointMixin):
             self.response_fields = {}
 
         self.endpoint_model = self.get_endpoint_model(
-            path,
+            self.path_format,
             endpoint,
             name=name,
             methods=self.methods,
@@ -364,6 +446,7 @@ class APIRouter(routing.Router):
         generate_unique_id_function: Callable[[APIRoute], str] = Default(
             generate_unique_id
         ),
+        prefix: str = "",
         **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
@@ -375,6 +458,7 @@ class APIRouter(routing.Router):
         self.responses = responses or {}
         self.callbacks = callbacks or []
         self.generate_unique_id_function = generate_unique_id_function
+        self.prefix = prefix
 
     def add_api_route(
         self,
@@ -449,7 +533,7 @@ class APIRouter(routing.Router):
 
         else:
             route = APIRoute(
-                path,
+                self.prefix + path,
                 endpoint,
                 methods=methods,
                 name=name,
@@ -519,6 +603,25 @@ class APIRouter(routing.Router):
                 tags=tags,
             )
             return func
+        return decorator
+
+    def add_api_websocket_route(
+        self, path: str, endpoint: Callable[..., Any], name: Optional[str] = None
+    ) -> None:
+        route = APIWebSocketRoute(
+            self.prefix + path,
+            endpoint=endpoint,
+            name=name,
+        )
+        self.routes.append(route)
+
+    def websocket(
+        self, path: str, name: Optional[str] = None
+    ) -> Callable[[DecoratedCallable], DecoratedCallable]:
+        def decorator(func: DecoratedCallable) -> DecoratedCallable:
+            self.add_api_websocket_route(path, func, name=name)
+            return func
+
         return decorator
 
     def include_router(
@@ -607,6 +710,10 @@ class APIRouter(routing.Router):
                     methods=methods,
                     include_in_schema=route.include_in_schema,
                     name=route.name,
+                )
+            elif isinstance(route, APIWebSocketRoute):
+                self.add_api_websocket_route(
+                    prefix + route.path, route.endpoint, name=route.name
                 )
             elif isinstance(route, routing.WebSocketRoute):
                 self.add_websocket_route(

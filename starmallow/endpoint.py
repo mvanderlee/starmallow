@@ -19,7 +19,10 @@ from typing import (
 import marshmallow as ma
 import marshmallow.fields as mf
 from marshmallow.utils import missing as missing_
+from starlette.background import BackgroundTasks
+from starlette.requests import HTTPConnection, Request
 from starlette.responses import Response
+from starlette.websockets import WebSocket
 
 from starmallow.params import Body, Cookie, Form, Header, Param, ParamType, Path, Query
 from starmallow.responses import JSONResponse
@@ -32,6 +35,7 @@ from starmallow.utils import (
     is_marshmallow_field,
     is_marshmallow_schema,
     is_optional,
+    lenient_issubclass,
 )
 
 if TYPE_CHECKING:
@@ -48,6 +52,7 @@ class EndpointModel:
     cookie_params: Optional[Dict[str, Cookie]] = field(default_factory=list)
     body_params: Optional[Dict[str, Body]] = field(default_factory=list)
     form_params: Optional[Dict[str, Form]] = field(default_factory=list)
+    non_field_params: Optional[Dict[str, Type[Any]]] = field(default_factory=list)
     name: Optional[str] = None
     path: Optional[str] = None
     methods: Optional[List[str]] = None
@@ -195,9 +200,23 @@ class EndpointMixin:
     ) -> Dict[ParamType, List[Dict[str, Param]]]:
         path_param_names = get_path_param_names(path)
         params = {param_type: {} for param_type in ParamType}
+        # Special case for non-field parameters
+        params[None] = {}
         for name, parameter in inspect.signature(endpoint).parameters.items():
             if name == 'self' and '.' in endpoint.__qualname__:
-                # Skip 'self' in APIHTTPEndpoint functions
+                # Skip 'self' in APIHTTPEndpoint functions\
+                continue
+            elif lenient_issubclass(
+                parameter.annotation,
+                (
+                    Request,
+                    WebSocket,
+                    HTTPConnection,
+                    Response,
+                    BackgroundTasks,
+                )
+            ):
+                params[None][name] = parameter.annotation
                 continue
 
             model = self._get_param_model(parameter)
@@ -267,6 +286,7 @@ class EndpointMixin:
             cookie_params=params[ParamType.cookie],
             body_params=params[ParamType.body],
             form_params=params[ParamType.form],
+            non_field_params=params[None],
             response_model=response_model,
             response_class=response_class,
             status_code=status_code,

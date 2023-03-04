@@ -21,6 +21,7 @@ from typing import (
     Tuple,
     Type,
     Union,
+    _GenericAlias,
     get_args,
     get_origin,
 )
@@ -210,6 +211,15 @@ def is_marshmallow_field(obj):
 
 def is_marshmallow_dataclass(obj):
     return is_dataclass(obj) and hasattr(obj, 'Schema') and is_marshmallow_schema(obj.Schema)
+
+
+def lenient_issubclass(cls: Any, class_or_tuple: Union[Type[Any], Tuple[Type[Any], ...], None]) -> bool:
+    try:
+        return isinstance(cls, type) and issubclass(cls, class_or_tuple)  # type: ignore[arg-type]
+    except TypeError:
+        if isinstance(cls, _GenericAlias):
+            return False
+        raise  # pragma: no cover
 
 
 def __dict_creator__(current, segments, i, hints=()):
