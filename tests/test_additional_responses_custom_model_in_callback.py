@@ -18,7 +18,7 @@ callback_router = APIRouter(default_response_class=JSONResponse)
 
 
 @callback_router.get(
-    "{$callback_url}/callback/", responses={400: {"model": CustomModel}}
+    "{$callback_url}/callback/", responses={400: {"model": CustomModel}},
 )
 def callback_route():
     pass  # pragma: no cover
@@ -47,7 +47,7 @@ openapi_schema = {
                         },
                         "name": "callback_url",
                         "in": "query",
-                    }
+                    },
                 ],
                 "responses": {
                     "200": {
@@ -59,9 +59,9 @@ openapi_schema = {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
+                                    "$ref": "#/components/schemas/HTTPValidationError",
+                                },
+                            },
                         },
                     },
                 },
@@ -76,9 +76,9 @@ openapi_schema = {
                                         "content": {
                                             "application/json": {
                                                 "schema": {
-                                                    "$ref": "#/components/schemas/CustomModel"
-                                                }
-                                            }
+                                                    "$ref": "#/components/schemas/CustomModel",
+                                                },
+                                            },
                                         },
                                         "description": "Bad Request",
                                     },
@@ -87,12 +87,12 @@ openapi_schema = {
                                         "content": {"application/json": {"schema": {}}},
                                     },
                                 },
-                            }
-                        }
-                    }
+                            },
+                        },
+                    },
                 },
-            }
-        }
+            },
+        },
     },
     "components": {
         "schemas": {
@@ -122,7 +122,7 @@ openapi_schema = {
                 'title': 'HTTPValidationError',
                 'type': 'object',
             },
-        }
+        },
     },
 }
 

@@ -44,8 +44,8 @@ openapi_schema = {
                         "description": "Error",
                         "content": {
                             "application/vnd.api+json": {
-                                "schema": {"$ref": "#/components/schemas/JsonApiError"}
-                            }
+                                "schema": {"$ref": "#/components/schemas/JsonApiError"},
+                            },
                         },
                     },
                     "200": {
@@ -61,10 +61,10 @@ openapi_schema = {
                         "schema": {"title": "Id"},
                         "name": "id",
                         "in": "path",
-                    }
+                    },
                 ],
-            }
-        }
+            },
+        },
     },
     "components": {
         "schemas": {
@@ -86,10 +86,10 @@ openapi_schema = {
                         "title": "Errors",
                         "type": "array",
                         "items": {"$ref": "#/components/schemas/Error"},
-                    }
+                    },
                 },
             },
-        }
+        },
     },
 }
 

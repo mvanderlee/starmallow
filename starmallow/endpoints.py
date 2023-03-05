@@ -28,6 +28,6 @@ class APIHTTPEndpoint:
 
     @classmethod
     def get_routes(
-        cls
+        cls,
     ):
         pass

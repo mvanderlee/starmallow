@@ -213,7 +213,7 @@ class OpenAPIConverter(ApiSpecOpenAPIConverter):
 
     # Overrice to add 'deprecated' support
     def _field2parameter(
-        self, field: mf.Field, *, name: str, location: str
+        self, field: mf.Field, *, name: str, location: str,
     ):
         """Return an OpenAPI parameter as a `dict`, given a marshmallow
         :class:`Field <marshmallow.Field>`.

@@ -134,7 +134,7 @@ openapi_schema = {
                 },
                 "summary": "Non Operation Options",
                 "operationId": "NonOperation_options_api_route_options",
-            }
+            },
         },
         "/path/str/{item_id}": {
             "get": {
@@ -148,9 +148,9 @@ openapi_schema = {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
+                                    "$ref": "#/components/schemas/HTTPValidationError",
+                                },
+                            },
                         },
                     },
                 },
@@ -162,9 +162,9 @@ openapi_schema = {
                         "schema": {"title": "Item Id", "type": "string"},
                         "name": "item_id",
                         "in": "path",
-                    }
+                    },
                 ],
-            }
+            },
         },
         "/overrides": {
             "get": {
@@ -207,7 +207,7 @@ openapi_schema = {
                 },
                 "summary": "Overrides Patch",
                 "operationId": "Overrides_patch_overrides_patch",
-                "tags": ["alpha", "beta"]
+                "tags": ["alpha", "beta"],
             },
             "delete": {
                 "responses": {
@@ -218,7 +218,7 @@ openapi_schema = {
                 },
                 "summary": "Overrides Delete",
                 "operationId": "Overrides_delete_overrides_delete",
-            }
+            },
         },
     },
     "components": {
@@ -243,7 +243,7 @@ openapi_schema = {
                 'title': 'HTTPValidationError',
                 'type': 'object',
             },
-        }
+        },
     },
 }
 

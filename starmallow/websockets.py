@@ -19,7 +19,7 @@ class APIWebSocket(WebSocket):
             raise RuntimeError('The "mode" argument should be "text" or "binary".')
         if self.application_state != WebSocketState.CONNECTED:
             raise RuntimeError(
-                'WebSocket is not connected. Need to call "accept" first.'
+                'WebSocket is not connected. Need to call "accept" first.',
             )
         message = await self.receive()
         self._raise_on_disconnect(message)

@@ -29,12 +29,12 @@ openapi_schema = {
                     "200": {
                         "description": "Successful Response",
                         "content": {"application/json": {"schema": {}}},
-                    }
+                    },
                 },
                 "summary": "Read Item",
                 "operationId": "read_item_items__get",
-            }
-        }
+            },
+        },
     },
 }
 

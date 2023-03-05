@@ -19,6 +19,6 @@ def assert_json(
             left.splitlines(True),
             right.splitlines(True),
             fromfile="left",
-            tofile="right"
+            tofile="right",
         )
         assert 0, "\n" + "".join(diff)

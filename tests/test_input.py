@@ -142,7 +142,7 @@ def post_multi_flat(
     sub_item_id,
     name: str,  # Query
     weight: float = Body(),
-    color: str = Header('blue')
+    color: str = Header('blue'),
 ):
     return {
         'item_id': item_id,
@@ -178,7 +178,7 @@ def post_multi_combo(
     query_params: MultiQueryParams = Query(),
     body_params: MultiBodyParams = Body(),
     weight_unit: Literal['lbs', 'kg'] = Query(),
-    color: str = Header('blue')
+    color: str = Header('blue'),
 ):
     return {
         'item_id': item_id,
@@ -214,9 +214,9 @@ openapi_schema = {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
+                                    "$ref": "#/components/schemas/HTTPValidationError",
+                                },
+                            },
                         },
                     },
                 },
@@ -228,9 +228,9 @@ openapi_schema = {
                         "schema": {"title": "Item Id"},
                         "name": "item_id",
                         "in": "path",
-                    }
+                    },
                 ],
-            }
+            },
         },
         "/path_with_request/{item_id}": {
             "get": {
@@ -244,9 +244,9 @@ openapi_schema = {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
+                                    "$ref": "#/components/schemas/HTTPValidationError",
+                                },
+                            },
                         },
                     },
                 },
@@ -258,9 +258,9 @@ openapi_schema = {
                         "schema": {"title": "Item Id"},
                         "name": "item_id",
                         "in": "path",
-                    }
+                    },
                 ],
-            }
+            },
         },
         "/path_with_http_connection/{item_id}": {
             "get": {
@@ -274,9 +274,9 @@ openapi_schema = {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
+                                    "$ref": "#/components/schemas/HTTPValidationError",
+                                },
+                            },
                         },
                     },
                 },
@@ -288,9 +288,9 @@ openapi_schema = {
                         "schema": {"title": "Item Id"},
                         "name": "item_id",
                         "in": "path",
-                    }
+                    },
                 ],
-            }
+            },
         },
         "/path_with_response/{item_id}": {
             "get": {
@@ -304,9 +304,9 @@ openapi_schema = {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
+                                    "$ref": "#/components/schemas/HTTPValidationError",
+                                },
+                            },
                         },
                     },
                 },
@@ -318,9 +318,9 @@ openapi_schema = {
                         "schema": {"title": "Item Id"},
                         "name": "item_id",
                         "in": "path",
-                    }
+                    },
                 ],
-            }
+            },
         },
         "/path_with_background_tasks/{item_id}": {
             "get": {
@@ -334,9 +334,9 @@ openapi_schema = {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
+                                    "$ref": "#/components/schemas/HTTPValidationError",
+                                },
+                            },
                         },
                     },
                 },
@@ -348,9 +348,9 @@ openapi_schema = {
                         "schema": {"title": "Item Id"},
                         "name": "item_id",
                         "in": "path",
-                    }
+                    },
                 ],
-            }
+            },
         },
         "/path_with_noparam/{item_id}": {
             "get": {
@@ -364,9 +364,9 @@ openapi_schema = {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
+                                    "$ref": "#/components/schemas/HTTPValidationError",
+                                },
+                            },
                         },
                     },
                 },
@@ -378,9 +378,9 @@ openapi_schema = {
                         "schema": {"title": "Item Id"},
                         "name": "item_id",
                         "in": "path",
-                    }
+                    },
                 ],
-            }
+            },
         },
         "/path/int/{item_id}": {
             "get": {
@@ -394,9 +394,9 @@ openapi_schema = {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
+                                    "$ref": "#/components/schemas/HTTPValidationError",
+                                },
+                            },
                         },
                     },
                 },
@@ -408,9 +408,9 @@ openapi_schema = {
                         "schema": {"title": "Item Id", "type": "integer"},
                         "name": "item_id",
                         "in": "path",
-                    }
+                    },
                 ],
-            }
+            },
         },
         "/path/param/{item_id}": {
             "get": {
@@ -424,9 +424,9 @@ openapi_schema = {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
+                                    "$ref": "#/components/schemas/HTTPValidationError",
+                                },
+                            },
                         },
                     },
                 },
@@ -438,9 +438,9 @@ openapi_schema = {
                         "schema": {"title": "Item Id", "type": "integer"},
                         "name": "item_id",
                         "in": "path",
-                    }
+                    },
                 ],
-            }
+            },
         },
         "/path/ma_dataclass/{item_id}": {
             "get": {
@@ -454,9 +454,9 @@ openapi_schema = {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
+                                    "$ref": "#/components/schemas/HTTPValidationError",
+                                },
+                            },
                         },
                     },
                 },
@@ -471,13 +471,13 @@ openapi_schema = {
                             "title": "Path Params",
                             "allOf": [
                                 {
-                                    "$ref": "#/components/schemas/PathParams"
-                                }
-                            ]
-                        }
-                    }
-                ]
-            }
+                                    "$ref": "#/components/schemas/PathParams",
+                                },
+                            ],
+                        },
+                    },
+                ],
+            },
         },
         "/path/ma_schema/{item_id}": {
             "get": {
@@ -491,9 +491,9 @@ openapi_schema = {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
+                                    "$ref": "#/components/schemas/HTTPValidationError",
+                                },
+                            },
                         },
                     },
                 },
@@ -508,13 +508,13 @@ openapi_schema = {
                             "title": "Path Params",
                             "allOf": [
                                 {
-                                    "$ref": "#/components/schemas/PathParams"
-                                }
-                            ]
-                        }
-                    }
-                ]
-            }
+                                    "$ref": "#/components/schemas/PathParams",
+                                },
+                            ],
+                        },
+                    },
+                ],
+            },
         },
         "/path/model_schema/{item_id}": {
             "get": {
@@ -528,9 +528,9 @@ openapi_schema = {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
+                                    "$ref": "#/components/schemas/HTTPValidationError",
+                                },
+                            },
                         },
                     },
                 },
@@ -545,13 +545,13 @@ openapi_schema = {
                             "title": "Path Params",
                             "allOf": [
                                 {
-                                    "$ref": "#/components/schemas/PathParams1"
-                                }
-                            ]
-                        }
-                    }
-                ]
-            }
+                                    "$ref": "#/components/schemas/PathParams1",
+                                },
+                            ],
+                        },
+                    },
+                ],
+            },
         },
         "/path/model_override/{item_id}": {
             "get": {
@@ -565,9 +565,9 @@ openapi_schema = {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
+                                    "$ref": "#/components/schemas/HTTPValidationError",
+                                },
+                            },
                         },
                     },
                 },
@@ -582,13 +582,13 @@ openapi_schema = {
                             "title": "Path Params",
                             "allOf": [
                                 {
-                                    "$ref": "#/components/schemas/PathParams1"
-                                }
-                            ]
-                        }
-                    }
-                ]
-            }
+                                    "$ref": "#/components/schemas/PathParams1",
+                                },
+                            ],
+                        },
+                    },
+                ],
+            },
         },
         "/multi_flat/{item_id}/{sub_item_id}": {
             "post": {
@@ -602,9 +602,9 @@ openapi_schema = {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
+                                    "$ref": "#/components/schemas/HTTPValidationError",
+                                },
+                            },
                         },
                     },
                 },
@@ -617,8 +617,8 @@ openapi_schema = {
                         "required": True,
                         "schema": {
                             "type": "string",
-                            "title": "Name"
-                        }
+                            "title": "Name",
+                        },
                     },
                     {
                         "in": "path",
@@ -626,16 +626,16 @@ openapi_schema = {
                         "required": True,
                         "schema": {
                             "type": "integer",
-                            "title": "Item Id"
-                        }
+                            "title": "Item Id",
+                        },
                     },
                     {
                         "in": "path",
                         "name": "sub_item_id",
                         "required": True,
                         "schema": {
-                            "title": "Sub Item Id"
-                        }
+                            "title": "Sub Item Id",
+                        },
                     },
                     {
                         "in": "header",
@@ -644,9 +644,9 @@ openapi_schema = {
                         "schema": {
                             "type": "string",
                             "default": "blue",
-                            "title": "Color"
-                        }
-                    }
+                            "title": "Color",
+                        },
+                    },
                 ],
                 "requestBody": {
                     "content": {
@@ -656,18 +656,18 @@ openapi_schema = {
                                 "properties": {
                                     "weight": {
                                         "type": "number",
-                                        "title": "Weight"
-                                    }
+                                        "title": "Weight",
+                                    },
                                 },
                                 "required": [
-                                    "weight"
-                                ]
-                            }
-                        }
+                                    "weight",
+                                ],
+                            },
+                        },
                     },
-                    "required": True
+                    "required": True,
                 },
-            }
+            },
         },
         "/multi_schema/{item_id}/{sub_item_id}": {
             "post": {
@@ -681,9 +681,9 @@ openapi_schema = {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
+                                    "$ref": "#/components/schemas/HTTPValidationError",
+                                },
+                            },
                         },
                     },
                 },
@@ -696,8 +696,8 @@ openapi_schema = {
                         'required': True,
                         'schema': {
                             'allOf': [{'$ref': '#/components/schemas/MultiQueryParams'}],
-                            'title': 'Query Params'
-                        }
+                            'title': 'Query Params',
+                        },
                     },
                     {
                         'in': 'path',
@@ -705,8 +705,8 @@ openapi_schema = {
                         'required': True,
                         'schema': {
                             'allOf': [{'$ref': '#/components/schemas/MultiPathParams'}],
-                            'title': 'Path Params'
-                        }
+                            'title': 'Path Params',
+                        },
                     },
                     {
                         'in': 'header',
@@ -714,21 +714,21 @@ openapi_schema = {
                         'required': True,
                         'schema': {
                             'allOf': [{'$ref': '#/components/schemas/MultiHeaderParams'}],
-                            'title': 'Header Params'
-                        }
+                            'title': 'Header Params',
+                        },
                     },
                 ],
                 "requestBody": {
                     "content": {
                         "application/json": {
                             "schema": {
-                                '$ref': '#/components/schemas/MultiBodyParams'
-                            }
-                        }
+                                '$ref': '#/components/schemas/MultiBodyParams',
+                            },
+                        },
                     },
-                    "required": True
+                    "required": True,
                 },
-            }
+            },
         },
         "/multi_combo/{item_id}/{sub_item_id}": {
             "post": {
@@ -742,9 +742,9 @@ openapi_schema = {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
+                                    "$ref": "#/components/schemas/HTTPValidationError",
+                                },
+                            },
                         },
                     },
                 },
@@ -757,8 +757,8 @@ openapi_schema = {
                         'required': True,
                         'schema': {
                             'allOf': [{'$ref': '#/components/schemas/MultiQueryParams'}],
-                            'title': 'Query Params'
-                        }
+                            'title': 'Query Params',
+                        },
                     },
                     {
                         'in': 'query',
@@ -766,8 +766,8 @@ openapi_schema = {
                         'required': True,
                         'schema': {
                             'enum': ['lbs', 'kg'],
-                            'title': 'Weight Unit'
-                        }
+                            'title': 'Weight Unit',
+                        },
                     },
                     {
                         'in': 'path',
@@ -775,8 +775,8 @@ openapi_schema = {
                         'required': True,
                         'schema': {
                             'title': 'Item Id',
-                            'type': 'integer'
-                        }
+                            'type': 'integer',
+                        },
                     },
                     {
                         'in': 'path',
@@ -784,8 +784,8 @@ openapi_schema = {
                         'required': True,
                         'schema': {
                             'allOf': [{'$ref': '#/components/schemas/MultiPathParams'}],
-                            'title': 'Path Params'
-                        }
+                            'title': 'Path Params',
+                        },
                     },
                     {
                         'in': 'header',
@@ -794,20 +794,20 @@ openapi_schema = {
                         'schema': {
                             'default': 'blue',
                             'title': 'Color',
-                            'type': 'string'
-                        }
-                    }
+                            'type': 'string',
+                        },
+                    },
                 ],
                 'requestBody': {
                     'content': {
                         'application/json': {
-                            'schema': {'$ref': '#/components/schemas/MultiBodyParams'}
-                        }
+                            'schema': {'$ref': '#/components/schemas/MultiBodyParams'},
+                        },
                     },
-                    'required': True
-                }
-            }
-        }
+                    'required': True,
+                },
+            },
+        },
     },
     "components": {
         "schemas": {
@@ -836,67 +836,67 @@ openapi_schema = {
                 "properties": {
                     "item_id": {
                         "type": "integer",
-                        "title": "Item Id"
-                    }
+                        "title": "Item Id",
+                    },
                 },
                 "required": [
-                    "item_id"
+                    "item_id",
                 ],
-                "title": "Path Params"
+                "title": "Path Params",
             },
             "PathParams1": {
                 "type": "object",
                 "properties": {
                     "item_id": {
                         "type": "integer",
-                        "title": "Item Id"
-                    }
+                        "title": "Item Id",
+                    },
                 },
-                "title": "Path Params"
+                "title": "Path Params",
             },
             "MultiPathParams": {
                 "type": "object",
                 "properties": {
                     "item_id": {
                         "type": "integer",
-                        "title": "Item Id"
+                        "title": "Item Id",
                     },
                     "sub_item_id": {
                         "type": "integer",
-                        "title": "Sub Item Id"
-                    }
+                        "title": "Sub Item Id",
+                    },
                 },
                 "required": [
                     "item_id",
-                    "sub_item_id"
+                    "sub_item_id",
                 ],
-                "title": "Path Params"
+                "title": "Path Params",
             },
             "MultiQueryParams": {
                 "type": "object",
                 "properties": {
                     "name": {
                         "type": "string",
-                        "title": "Name"
-                    }
+                        "title": "Name",
+                    },
                 },
                 "required": [
-                    "name"
+                    "name",
                 ],
-                "title": "Query Params"
+                "title": "Query Params",
             },
             "MultiBodyParams": {
                 "type": "object",
                 "properties": {
                     "weight": {
                         "type": "number",
-                        "title": "Weight"
-                    }
+                        "title": "Weight",
+                    },
                 },
                 "required": [
-                    "weight"
+                    "weight",
                 ],
-                "title": "Body Params"
+                "title": "Body Params",
             },
             "MultiHeaderParams": {
                 "type": "object",
@@ -904,12 +904,12 @@ openapi_schema = {
                     "color": {
                         "type": "string",
                         "default": "blue",
-                        "title": "Color"
-                    }
+                        "title": "Color",
+                    },
                 },
-                "title": "Header Params"
+                "title": "Header Params",
             },
-        }
+        },
     },
 }
 
@@ -983,7 +983,7 @@ def test_get_path(path, expected_status, expected_response):
                 'color': 'red',
             },
         ),
-    ]
+    ],
 )
 def test_post_path(path, headers, body, expected_status, expected_response):
     response = client.post(path, headers=headers, json=body)
@@ -1002,14 +1002,14 @@ def test_post_path(path, headers, body, expected_status, expected_response):
             {
                 "detail": {
                     "json": {
-                        "weight": ["Not a valid number."]
+                        "weight": ["Not a valid number."],
                     },
                     "path": {
-                        "item_id": ["Not a valid integer."]
-                    }
+                        "item_id": ["Not a valid integer."],
+                    },
                 },
                 "error": "ValidationError",
-                "status_code": 422
+                "status_code": 422,
             },
         ),
         (
@@ -1020,15 +1020,15 @@ def test_post_path(path, headers, body, expected_status, expected_response):
             {
                 "detail": {
                     "json": {
-                        "weight": ["Not a valid number."]
+                        "weight": ["Not a valid number."],
                     },
                     "path": {
                         "item_id": ["Not a valid integer."],
-                        "sub_item_id": ["Not a valid integer."]
-                    }
+                        "sub_item_id": ["Not a valid integer."],
+                    },
                 },
                 "error": "ValidationError",
-                "status_code": 422
+                "status_code": 422,
             },
         ),
         (
@@ -1039,21 +1039,21 @@ def test_post_path(path, headers, body, expected_status, expected_response):
             {
                 "detail": {
                     "json": {
-                        "weight": ["Not a valid number."]
+                        "weight": ["Not a valid number."],
                     },
                     "path": {
                         "item_id": ["Not a valid integer.", "Not a valid integer."],
-                        "sub_item_id": ["Not a valid integer."]
+                        "sub_item_id": ["Not a valid integer."],
                     },
                     "query": {
-                        "weight_unit": ["Must be one of: lbs, kg."]
-                    }
+                        "weight_unit": ["Must be one of: lbs, kg."],
+                    },
                 },
                 "error": "ValidationError",
-                "status_code": 422
+                "status_code": 422,
             },
         ),
-    ]
+    ],
 )
 def test_post_path_validation(path, headers, body, expected_status, expected_response):
     response = client.post(path, headers=headers, json=body)

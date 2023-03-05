@@ -52,7 +52,7 @@ class StarMallow(Starlette):
         exception_handlers: Mapping[
             Any,
             Callable[
-                [Request, Exception], Union[Response, Awaitable[Response]]
+                [Request, Exception], Union[Response, Awaitable[Response]],
             ],
         ] = None,
         on_startup: Optional[Sequence[Callable[[], Any]]] = None,
@@ -115,7 +115,7 @@ class StarMallow(Starlette):
         )
         self.exception_handlers.setdefault(HTTPException, http_exception_handler)
         self.exception_handlers.setdefault(
-            RequestValidationError, request_validation_exception_handler
+            RequestValidationError, request_validation_exception_handler,
         )
 
         self.user_middleware = [] if middleware is None else list(middleware)
@@ -172,7 +172,7 @@ class StarMallow(Starlette):
                 root_path = req.scope.get("root_path", "").rstrip("/")
                 openapi_url = root_path + self.openapi_url
                 return get_redoc_html(
-                    openapi_url=openapi_url, title=self.title + " - ReDoc"
+                    openapi_url=openapi_url, title=self.title + " - ReDoc",
                 )
 
             self.add_route(self.redoc_url, redoc_html, include_in_schema=False)
@@ -291,12 +291,12 @@ class StarMallow(Starlette):
         )
 
     def add_api_websocket_route(
-        self, path: str, endpoint: Callable[..., Any], name: Optional[str] = None
+        self, path: str, endpoint: Callable[..., Any], name: Optional[str] = None,
     ) -> None:
         self.router.add_api_websocket_route(path, endpoint, name=name)
 
     def websocket(
-        self, path: str, name: Optional[str] = None
+        self, path: str, name: Optional[str] = None,
     ) -> Callable[[DecoratedCallable], DecoratedCallable]:
         def decorator(func: DecoratedCallable) -> DecoratedCallable:
             self.add_api_websocket_route(path, func, name=name)
@@ -316,7 +316,7 @@ class StarMallow(Starlette):
         include_in_schema: bool = True,
         default_response_class: Type[Response] = Default(JSONResponse),
         generate_unique_id_function: Callable[[APIRoute], str] = Default(
-            generate_unique_id
+            generate_unique_id,
         ),
     ) -> None:
         self.router.include_router(
@@ -668,7 +668,7 @@ class StarMallow(Starlette):
         )
 
     def websocket_route(
-        self, path: str, name: Union[str, None] = None
+        self, path: str, name: Union[str, None] = None,
     ) -> Callable[[DecoratedCallable], DecoratedCallable]:
         def decorator(func: DecoratedCallable) -> DecoratedCallable:
             self.router.add_api_websocket_route(path, func, name=name)
@@ -677,12 +677,12 @@ class StarMallow(Starlette):
         return decorator
 
     def on_event(
-        self, event_type: str
+        self, event_type: str,
     ) -> Callable[[DecoratedCallable], DecoratedCallable]:
         return self.router.on_event(event_type)
 
     def middleware(
-        self, middleware_type: str
+        self, middleware_type: str,
     ) -> Callable[[DecoratedCallable], DecoratedCallable]:
         def decorator(func: DecoratedCallable) -> DecoratedCallable:
             self.add_middleware(BaseHTTPMiddleware, dispatch=func)
@@ -691,7 +691,7 @@ class StarMallow(Starlette):
         return decorator
 
     def exception_handler(
-        self, exc_class_or_status_code: Union[int, Type[Exception]]
+        self, exc_class_or_status_code: Union[int, Type[Exception]],
     ) -> Callable[[DecoratedCallable], DecoratedCallable]:
         def decorator(func: DecoratedCallable) -> DecoratedCallable:
             self.add_exception_handler(exc_class_or_status_code, func)

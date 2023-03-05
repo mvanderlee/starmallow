@@ -314,12 +314,14 @@ class APIWebSocketRoute(routing.WebSocketRoute, EndpointMixin):
         self.name = get_name(endpoint) if name is None else name
         self.path_regex, self.path_format, self.param_convertors = compile_path(path)
         self.app = websocket_session(
-            get_websocker_hander(self.get_endpoint_model(
-                self.path_format,
-                endpoint,
-                name=name,
-                route=self,
-            ))
+            get_websocker_hander(
+                self.get_endpoint_model(
+                    self.path_format,
+                    endpoint,
+                    name=name,
+                    route=self,
+                ),
+            ),
         )
 
     def matches(self, scope: Scope) -> Tuple[Match, Scope]:
@@ -343,7 +345,7 @@ class APIRoute(routing.Route, EndpointMixin):
         deprecated: Optional[bool] = None,
         response_model: Optional[ma.Schema] = None,
         response_class: Union[Type[Response], DefaultPlaceholder] = Default(
-            JSONResponse
+            JSONResponse,
         ),
         # OpenAPI summary
         summary: Optional[str] = None,
@@ -355,7 +357,7 @@ class APIRoute(routing.Route, EndpointMixin):
         operation_id: Optional[str] = None,
         # If operation_id is None, this function will be used to create one.
         generate_unique_id_function: Union[
-            Callable[["APIRoute"], str], DefaultPlaceholder
+            Callable[["APIRoute"], str], DefaultPlaceholder,
         ] = Default(generate_unique_id),
         # OpenAPI tags
         tags: Optional[List[Union[str, Enum]]] = None,
@@ -405,7 +407,7 @@ class APIRoute(routing.Route, EndpointMixin):
         self.generate_unique_id_function = generate_unique_id_function
         if isinstance(generate_unique_id_function, DefaultPlaceholder):
             current_generate_unique_id: Callable[
-                ["APIRoute"], str
+                ["APIRoute"], str,
             ] = generate_unique_id_function.value
         else:
             current_generate_unique_id = generate_unique_id_function
@@ -433,7 +435,7 @@ class APIRoute(routing.Route, EndpointMixin):
             model = response.get("model")
             if model:
                 assert is_body_allowed_for_status_code(
-                    additional_status_code
+                    additional_status_code,
                 ), f"Status code {additional_status_code} must not have a response body"
                 # TODO: do we want this?
                 # response_name = f"Response_{additional_status_code}_{self.unique_id}"
@@ -471,7 +473,7 @@ class APIRouter(routing.Router):
         responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
         callbacks: Optional[List[BaseRoute]] = None,
         generate_unique_id_function: Callable[[APIRoute], str] = Default(
-            generate_unique_id
+            generate_unique_id,
         ),
         prefix: str = "",
         **kwargs,
@@ -633,7 +635,7 @@ class APIRouter(routing.Router):
         return decorator
 
     def add_api_websocket_route(
-        self, path: str, endpoint: Callable[..., Any], name: Optional[str] = None
+        self, path: str, endpoint: Callable[..., Any], name: Optional[str] = None,
     ) -> None:
         route = APIWebSocketRoute(
             self.prefix + path,
@@ -643,7 +645,7 @@ class APIRouter(routing.Router):
         self.routes.append(route)
 
     def websocket(
-        self, path: str, name: Optional[str] = None
+        self, path: str, name: Optional[str] = None,
     ) -> Callable[[DecoratedCallable], DecoratedCallable]:
         def decorator(func: DecoratedCallable) -> DecoratedCallable:
             self.add_api_websocket_route(path, func, name=name)
@@ -667,7 +669,7 @@ class APIRouter(routing.Router):
         if prefix:
             assert prefix.startswith("/"), "A path prefix must start with '/'"
             assert not prefix.endswith(
-                "/"
+                "/",
             ), "A path prefix must not end with '/', as the routes will start with '/'"
         else:
             for r in router.routes:
@@ -675,7 +677,7 @@ class APIRouter(routing.Router):
                 name = getattr(r, "name", "unknown")
                 if path is not None and not path:
                     raise Exception(
-                        f"Prefix and path cannot be both empty (path operation: {name})"
+                        f"Prefix and path cannot be both empty (path operation: {name})",
                     )
 
         if responses is None:
@@ -740,11 +742,11 @@ class APIRouter(routing.Router):
                 )
             elif isinstance(route, APIWebSocketRoute):
                 self.add_api_websocket_route(
-                    prefix + route.path, route.endpoint, name=route.name
+                    prefix + route.path, route.endpoint, name=route.name,
                 )
             elif isinstance(route, routing.WebSocketRoute):
                 self.add_websocket_route(
-                    prefix + route.path, route.endpoint, name=route.name
+                    prefix + route.path, route.endpoint, name=route.name,
                 )
 
         for handler in router.on_startup:

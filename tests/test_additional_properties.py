@@ -37,9 +37,9 @@ openapi_schema = {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
+                                    "$ref": "#/components/schemas/HTTPValidationError",
+                                },
+                            },
                         },
                     },
                 },
@@ -48,13 +48,13 @@ openapi_schema = {
                 "requestBody": {
                     "content": {
                         "application/json": {
-                            "schema": {"$ref": "#/components/schemas/Items"}
-                        }
+                            "schema": {"$ref": "#/components/schemas/Items"},
+                        },
                     },
                     "required": True,
                 },
-            }
-        }
+            },
+        },
     },
     "components": {
         "schemas": {
@@ -67,7 +67,7 @@ openapi_schema = {
                         "title": "Items",
                         "type": "object",
                         "additionalProperties": {"type": "integer"},
-                    }
+                    },
                 },
             },
             "HTTPValidationError": {
@@ -90,7 +90,7 @@ openapi_schema = {
                 'title': 'HTTPValidationError',
                 'type': 'object',
             },
-        }
+        },
     },
 }
 

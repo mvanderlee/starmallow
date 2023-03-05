@@ -22,9 +22,9 @@ openapi_schema = {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
+                                    "$ref": "#/components/schemas/HTTPValidationError",
+                                },
+                            },
                         },
                     },
                     "200": {
@@ -40,10 +40,10 @@ openapi_schema = {
                         "schema": {"title": "Id"},
                         "name": "id",
                         "in": "path",
-                    }
+                    },
                 ],
-            }
-        }
+            },
+        },
     },
     "components": {
         "schemas": {
@@ -67,7 +67,7 @@ openapi_schema = {
                 'title': 'HTTPValidationError',
                 'type': 'object',
             },
-        }
+        },
     },
 }
 

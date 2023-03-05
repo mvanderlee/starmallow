@@ -28,8 +28,8 @@ openapi_schema = {
                 },
                 "summary": "A",
                 "operationId": "a_a_get",
-            }
-        }
+            },
+        },
     },
 }
 

@@ -172,7 +172,7 @@ def get_path_custom_description() -> str:
         },
         404: {
             "content": {
-                "text/plain": {}
+                "text/plain": {},
             },
             "description": "Item Not Found",
         },
@@ -203,7 +203,7 @@ openapi_schema = {
                 },
                 "summary": "Get Path Str",
                 "operationId": "get_path_str_path_str_get",
-            }
+            },
         },
         "/path/int": {
             "get": {
@@ -215,7 +215,7 @@ openapi_schema = {
                 },
                 "summary": "Get Path Int",
                 "operationId": "get_path_int_path_int_get",
-            }
+            },
         },
         "/path/bool": {
             "get": {
@@ -227,7 +227,7 @@ openapi_schema = {
                 },
                 "summary": "Get Path Bool",
                 "operationId": "get_path_bool_path_bool_get",
-            }
+            },
         },
         "/path/date": {
             "get": {
@@ -239,7 +239,7 @@ openapi_schema = {
                 },
                 "summary": "Get Path Date",
                 "operationId": "get_path_date_path_date_get",
-            }
+            },
         },
         "/path/datetime": {
             "get": {
@@ -251,7 +251,7 @@ openapi_schema = {
                 },
                 "summary": "Get Path Datetime",
                 "operationId": "get_path_datetime_path_datetime_get",
-            }
+            },
         },
         "/path/time": {
             "get": {
@@ -263,7 +263,7 @@ openapi_schema = {
                 },
                 "summary": "Get Path Time",
                 "operationId": "get_path_time_path_time_get",
-            }
+            },
         },
         "/path/timedelta": {
             "get": {
@@ -275,7 +275,7 @@ openapi_schema = {
                 },
                 "summary": "Get Path Timedelta",
                 "operationId": "get_path_timedelta_path_timedelta_get",
-            }
+            },
         },
         "/path/uuid": {
             "get": {
@@ -287,7 +287,7 @@ openapi_schema = {
                 },
                 "summary": "Get Path Uuid",
                 "operationId": "get_path_uuid_path_uuid_get",
-            }
+            },
         },
         "/path/decimal": {
             "get": {
@@ -299,7 +299,7 @@ openapi_schema = {
                 },
                 "summary": "Get Path Decimal",
                 "operationId": "get_path_decimal_path_decimal_get",
-            }
+            },
         },
         "/path/enum": {
             "get": {
@@ -311,7 +311,7 @@ openapi_schema = {
                 },
                 "summary": "Get Path Enum",
                 "operationId": "get_path_enum_path_enum_get",
-            }
+            },
         },
         "/path/literal": {
             "get": {
@@ -323,7 +323,7 @@ openapi_schema = {
                 },
                 "summary": "Get Path Literal",
                 "operationId": "get_path_literal_path_literal_get",
-            }
+            },
         },
         "/path/final": {
             "get": {
@@ -335,7 +335,7 @@ openapi_schema = {
                 },
                 "summary": "Get Path Final",
                 "operationId": "get_path_final_path_final_get",
-            }
+            },
         },
         "/path/date_field": {
             "get": {
@@ -347,7 +347,7 @@ openapi_schema = {
                 },
                 "summary": "Get Path Date Field",
                 "operationId": "get_path_date_field_path_date_field_get",
-            }
+            },
         },
         "/path/date_model": {
             "get": {
@@ -359,7 +359,7 @@ openapi_schema = {
                 },
                 "summary": "Get Path Date Model",
                 "operationId": "get_path_date_model_path_date_model_get",
-            }
+            },
         },
         "/path/dataclass": {
             "get": {
@@ -371,7 +371,7 @@ openapi_schema = {
                 },
                 "summary": "Get Path Dataclass",
                 "operationId": "get_path_dataclass_path_dataclass_get",
-            }
+            },
         },
         "/path/schema": {
             "get": {
@@ -383,7 +383,7 @@ openapi_schema = {
                 },
                 "summary": "Get Path Schema",
                 "operationId": "get_path_schema_path_schema_get",
-            }
+            },
         },
         "/path/dataclass_model": {
             "get": {
@@ -395,7 +395,7 @@ openapi_schema = {
                 },
                 "summary": "Get Path Dataclass Model",
                 "operationId": "get_path_dataclass_model_path_dataclass_model_get",
-            }
+            },
         },
         "/path/schema_model": {
             "get": {
@@ -407,79 +407,95 @@ openapi_schema = {
                 },
                 "summary": "Get Path Schema Model",
                 "operationId": "get_path_schema_model_path_schema_model_get",
-            }
+            },
         },
         "/path/list_date": {
             "get": {
                 "responses": {
                     "200": {
                         "description": "Successful Response",
-                        "content": {"application/json": {"schema": {
-                            "items": {
-                                "format": "date",
-                                "type": "string"
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "format": "date",
+                                        "type": "string",
+                                    },
+                                    "type": "array",
+                                },
                             },
-                            "type": "array"
-                        }}},
+                        },
                     },
                 },
                 "summary": "Get Path List Date",
                 "operationId": "get_path_list_date_path_list_date_get",
-            }
+            },
         },
         "/path/set_date": {
             "get": {
                 "responses": {
                     "200": {
                         "description": "Successful Response",
-                        "content": {"application/json": {"schema": {
-                            "items": {
-                                "format": "date",
-                                "type": "string"
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "format": "date",
+                                        "type": "string",
+                                    },
+                                    "type": "array",
+                                    "uniqueItems": True,
+                                },
                             },
-                            "type": "array",
-                            "uniqueItems": True
-                        }}},
+                        },
                     },
                 },
                 "summary": "Get Path Set Date",
                 "operationId": "get_path_set_date_path_set_date_get",
-            }
+            },
         },
         "/path/dict_date_date": {
             "get": {
                 "responses": {
                     "200": {
                         "description": "Successful Response",
-                        "content": {"application/json": {"schema": {
-                            "additionalProperties": {
-                                "format": "date",
-                                "type": "string"
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "additionalProperties": {
+                                        "format": "date",
+                                        "type": "string",
+                                    },
+                                    "type": "object",
+                                },
                             },
-                            "type": "object"
-                        }}},
+                        },
                     },
                 },
                 "summary": "Get Path Dict Date Date",
                 "operationId": "get_path_dict_date_date_path_dict_date_date_get",
-            }
+            },
         },
         "/path/list_dataclass": {
             "get": {
                 "responses": {
                     "200": {
                         "description": "Successful Response",
-                        "content": {"application/json": {"schema": {
-                            "items": {
-                                "$ref": "#/components/schemas/Item",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/Item",
+                                    },
+                                    "type": "array",
+                                },
                             },
-                            "type": "array"
-                        }}},
+                        },
                     },
                 },
                 "summary": "Get Path List Dataclass",
                 "operationId": "get_path_list_dataclass_path_list_dataclass_get",
-            }
+            },
         },
         "/path/custom_description": {
             "get": {
@@ -491,7 +507,7 @@ openapi_schema = {
                 },
                 "summary": "Get Path Custom Description",
                 "operationId": "get_path_custom_description_path_custom_description_get",
-            }
+            },
         },
         "/path/multi_response": {
             "get": {
@@ -514,7 +530,7 @@ openapi_schema = {
                 },
                 "summary": "Get Path Multi Response",
                 "operationId": "get_path_multi_response_path_multi_response_get",
-            }
+            },
         },
 
     },
@@ -525,27 +541,27 @@ openapi_schema = {
                     'item_id': {
                         'default': 10,
                         'title': 'Item Id',
-                        'type': 'integer'
-                    }
+                        'type': 'integer',
+                    },
                 },
                 'title': 'FinalItem',
-                'type': 'object'
+                'type': 'object',
             },
             "Item": {
                 "properties": {
                     "item_id": {
                         "format": "date",
                         "title": "Item Id",
-                        "type": "string"
-                    }
+                        "type": "string",
+                    },
                 },
                 "required": [
-                    "item_id"
+                    "item_id",
                 ],
                 "title": "Item",
-                "type": "object"
-            }
-        }
+                "type": "object",
+            },
+        },
     },
 }
 

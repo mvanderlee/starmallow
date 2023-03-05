@@ -10,7 +10,7 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
     headers = getattr(exc, "headers", None)
     if headers:
         return JSONResponse(
-            {"detail": exc.detail}, status_code=exc.status_code, headers=headers
+            {"detail": exc.detail}, status_code=exc.status_code, headers=headers,
         )
     else:
         return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)

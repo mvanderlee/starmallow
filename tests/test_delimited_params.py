@@ -56,9 +56,9 @@ openapi_schema = {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
+                                    "$ref": "#/components/schemas/HTTPValidationError",
+                                },
+                            },
                         },
                     },
                 },
@@ -71,16 +71,16 @@ openapi_schema = {
                         "name": "item_ids",
                         "schema": {
                             "items": {
-                                "type": "integer"
+                                "type": "integer",
                             },
                             "title": "Item Ids",
-                            "type": "array"
+                            "type": "array",
                         },
                         "required": True,
-                        "style": "form"
-                    }
+                        "style": "form",
+                    },
                 ],
-            }
+            },
         },
         "/query": {
             "get": {
@@ -94,9 +94,9 @@ openapi_schema = {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
+                                    "$ref": "#/components/schemas/HTTPValidationError",
+                                },
+                            },
                         },
                     },
                 },
@@ -109,16 +109,16 @@ openapi_schema = {
                         "name": "item_ids",
                         "schema": {
                             "items": {
-                                "type": "integer"
+                                "type": "integer",
                             },
                             "title": "Item Ids",
-                            "type": "array"
+                            "type": "array",
                         },
                         "required": True,
-                        "style": "form"
-                    }
+                        "style": "form",
+                    },
                 ],
-            }
+            },
         },
         "/header": {
             "get": {
@@ -132,9 +132,9 @@ openapi_schema = {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
+                                    "$ref": "#/components/schemas/HTTPValidationError",
+                                },
+                            },
                         },
                     },
                 },
@@ -147,16 +147,16 @@ openapi_schema = {
                         "name": "item_ids",
                         "schema": {
                             "items": {
-                                "type": "integer"
+                                "type": "integer",
                             },
                             "title": "Item Ids",
-                            "type": "array"
+                            "type": "array",
                         },
                         "required": True,
-                        "style": "form"
-                    }
+                        "style": "form",
+                    },
                 ],
-            }
+            },
         },
         "/json": {
             "post": {
@@ -170,9 +170,9 @@ openapi_schema = {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
+                                    "$ref": "#/components/schemas/HTTPValidationError",
+                                },
+                            },
                         },
                     },
                 },
@@ -186,17 +186,17 @@ openapi_schema = {
                                     "item_ids": {
                                         "items": {"type": "integer"},
                                         "title": "Item Ids",
-                                        "type": "array"
-                                    }
+                                        "type": "array",
+                                    },
                                 },
                                 "required": ["item_ids"],
-                                "type": "object"
-                            }
-                        }
+                                "type": "object",
+                            },
+                        },
                     },
-                    "required": True
-                }
-            }
+                    "required": True,
+                },
+            },
         },
     },
     "components": {
@@ -221,8 +221,8 @@ openapi_schema = {
                 'title': 'HTTPValidationError',
                 'type': 'object',
             },
-        }
-    }
+        },
+    },
 }
 
 

@@ -65,9 +65,9 @@ openapi_schema = {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
+                                    "$ref": "#/components/schemas/HTTPValidationError",
+                                },
+                            },
                         },
                     },
                 },
@@ -77,13 +77,13 @@ openapi_schema = {
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/FieldBody"
-                            }
-                        }
+                                "$ref": "#/components/schemas/FieldBody",
+                            },
+                        },
                     },
-                    "required": True
+                    "required": True,
                 },
-            }
+            },
         },
     },
     "components": {
@@ -114,34 +114,34 @@ openapi_schema = {
                     "alpha": {
                         "description": "this field is required",
                         "type": "string",
-                        "title": "Alpha"
+                        "title": "Alpha",
                     },
                     "beta": {
                         "default": None,
                         "nullable": True,
                         "type": "integer",
-                        "title": "Beta"
+                        "title": "Beta",
                     },
                     "charlie": {
                         "default": True,
                         "readOnly": True,
                         "type": "boolean",
-                        "title": "Charlie"
+                        "title": "Charlie",
                     },
                     "delta": {
                         "items": {
                             "type": "string",
                         },
                         "title": "Delta",
-                        "type": "array"
-                    }
+                        "type": "array",
+                    },
                 },
                 "required": [
-                    "alpha"
+                    "alpha",
                 ],
-                "title": "Field Body"
+                "title": "Field Body",
             },
-        }
+        },
     },
 }
 
@@ -192,7 +192,7 @@ def test_get_path(path, expected_status, expected_response):
                 'delta': ['barfoo'],
             },
         ),
-    ]
+    ],
 )
 def test_post_path(path, body, expected_status, expected_response):
     response = client.post(path, json=body)

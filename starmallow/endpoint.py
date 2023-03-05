@@ -167,8 +167,8 @@ class EndpointMixin:
                     parameter.default.title
                     if (isinstance(parameter.default, Param) and parameter.default.title)
                     else parameter.name.title().replace('_', ' ')
-                )
-            }
+                ),
+            },
         }
         # Ensure we pass parameter fields into the marshmallow field
         if isinstance(parameter.default, Param):
@@ -258,7 +258,7 @@ class EndpointMixin:
                     HTTPConnection,
                     Response,
                     BackgroundTasks,
-                )
+                ),
             ):
                 params[ParamType.noparam][name] = parameter.annotation
                 continue
@@ -360,7 +360,7 @@ def safe_merge_all_params(
 
 
 def flatten_resolved_parameters(
-    resolved_params: Dict[ParamType, Dict[str, Param]]
+    resolved_params: Dict[ParamType, Dict[str, Param]],
 ) -> Dict[ParamType, Dict[str, Param]]:
     # flat_params = {param_type: {} for param_type in ParamType}
     flat_params = resolved_params.copy()

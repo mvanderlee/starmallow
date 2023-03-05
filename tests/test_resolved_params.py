@@ -80,9 +80,9 @@ openapi_schema = {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
+                                    "$ref": "#/components/schemas/HTTPValidationError",
+                                },
+                            },
                         },
                     },
                 },
@@ -94,7 +94,7 @@ openapi_schema = {
                         "schema": {
                             "default": 0,
                             "type": "integer",
-                            "title": "Offset"
+                            "title": "Offset",
                         },
                         "name": "offset",
                         "in": "query",
@@ -104,13 +104,13 @@ openapi_schema = {
                         "schema": {
                             "default": 1000,
                             "type": "integer",
-                            "title": "Limit"
+                            "title": "Limit",
                         },
                         "name": "limit",
                         "in": "query",
-                    }
+                    },
                 ],
-            }
+            },
         },
         "/filtered_paging_1/{q}": {
             "get": {
@@ -124,9 +124,9 @@ openapi_schema = {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
+                                    "$ref": "#/components/schemas/HTTPValidationError",
+                                },
+                            },
                         },
                     },
                 },
@@ -137,13 +137,13 @@ openapi_schema = {
                         "required": True,
                         "schema": {
                             "type": "string",
-                            "title": "Q"
+                            "title": "Q",
                         },
                         "name": "q",
                         "in": "path",
-                    }
+                    },
                 ],
-            }
+            },
         },
         "/filtered_paging_2/{q}": {
             "get": {
@@ -157,9 +157,9 @@ openapi_schema = {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
+                                    "$ref": "#/components/schemas/HTTPValidationError",
+                                },
+                            },
                         },
                     },
                 },
@@ -171,7 +171,7 @@ openapi_schema = {
                         "schema": {
                             "default": 0,
                             "type": "integer",
-                            "title": "Offset"
+                            "title": "Offset",
                         },
                         "name": "offset",
                         "in": "query",
@@ -181,7 +181,7 @@ openapi_schema = {
                         "schema": {
                             "default": 1000,
                             "type": "integer",
-                            "title": "Limit"
+                            "title": "Limit",
                         },
                         "name": "limit",
                         "in": "query",
@@ -190,13 +190,13 @@ openapi_schema = {
                         "required": True,
                         "schema": {
                             "type": "string",
-                            "title": "Q"
+                            "title": "Q",
                         },
                         "name": "q",
                         "in": "path",
-                    }
+                    },
                 ],
-            }
+            },
         },
     },
     "components": {
@@ -221,7 +221,7 @@ openapi_schema = {
                 'title': 'HTTPValidationError',
                 'type': 'object',
             },
-        }
+        },
     },
 }
 

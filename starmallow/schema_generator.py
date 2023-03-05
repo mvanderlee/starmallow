@@ -197,7 +197,7 @@ class SchemaGenerator(BaseSchemaGenerator):
         if endpoint_schema:
             schema['requestBody'] = {
                 'content': {
-                    endpoint.response_class.media_type: {'schema': endpoint_schema}
+                    endpoint.response_class.media_type: {'schema': endpoint_schema},
                 },
                 'required': True,
             }
@@ -214,8 +214,8 @@ class SchemaGenerator(BaseSchemaGenerator):
         operation_responses[main_response] = {
             'content': {
                 endpoint.response_class.media_type: {
-                    'schema': self.schemas[endpoint.response_model] if endpoint.response_model else {}
-                }
+                    'schema': self.schemas[endpoint.response_model] if endpoint.response_model else {},
+                },
             },
         }
         if endpoint.route.response_description:
@@ -236,7 +236,7 @@ class SchemaGenerator(BaseSchemaGenerator):
                 additional_response,
             ) in route.responses.items():
                 assert isinstance(
-                    additional_response, dict
+                    additional_response, dict,
                 ), "An additional response must be a dict"
                 process_response = additional_response.copy()
                 process_response.pop("model", None)
@@ -244,7 +244,7 @@ class SchemaGenerator(BaseSchemaGenerator):
                 if status_code_key == "DEFAULT":
                     status_code_key = "default"
                 openapi_response = operation_responses.setdefault(
-                    status_code_key, {}
+                    status_code_key, {},
                 )
                 field = route.response_fields.get(additional_status_code)
                 additional_field_schema: Optional[Dict[str, Any]] = None
@@ -258,7 +258,7 @@ class SchemaGenerator(BaseSchemaGenerator):
                     )
                     deep_dict_update(additional_schema, additional_field_schema)
                 status_text: Optional[str] = status_code_ranges.get(
-                    str(additional_status_code).upper()
+                    str(additional_status_code).upper(),
                 ) or http.client.responses.get(int(additional_status_code))
                 description = (
                     process_response.get("description")
@@ -343,7 +343,7 @@ class SchemaGenerator(BaseSchemaGenerator):
             [
                 status in schema['responses']
                 for status in ["422", "4XX", "default"]
-            ]
+            ],
         ):
             self._add_default_error_response(schema)
 

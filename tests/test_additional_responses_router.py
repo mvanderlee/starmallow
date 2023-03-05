@@ -70,7 +70,7 @@ openapi_schema = {
                 },
                 "summary": "A",
                 "operationId": "a_a_get",
-            }
+            },
         },
         "/b": {
             "get": {
@@ -84,7 +84,7 @@ openapi_schema = {
                 },
                 "summary": "B",
                 "operationId": "b_b_get",
-            }
+            },
         },
         "/c": {
             "get": {
@@ -99,7 +99,7 @@ openapi_schema = {
                 },
                 "summary": "C",
                 "operationId": "c_c_get",
-            }
+            },
         },
         "/d": {
             "get": {
@@ -109,8 +109,8 @@ openapi_schema = {
                         "description": "Server Error",
                         "content": {
                             "application/json": {
-                                "schema": {"$ref": "#/components/schemas/ResponseModel"}
-                            }
+                                "schema": {"$ref": "#/components/schemas/ResponseModel"},
+                            },
                         },
                     },
                     "200": {
@@ -121,14 +121,14 @@ openapi_schema = {
                         "description": "Default Response",
                         "content": {
                             "application/json": {
-                                "schema": {"$ref": "#/components/schemas/ResponseModel"}
-                            }
+                                "schema": {"$ref": "#/components/schemas/ResponseModel"},
+                            },
                         },
                     },
                 },
                 "summary": "D",
                 "operationId": "d_d_get",
-            }
+            },
         },
     },
     "components": {
@@ -138,8 +138,8 @@ openapi_schema = {
                 "required": ["message"],
                 "type": "object",
                 "properties": {"message": {"title": "Message", "type": "string"}},
-            }
-        }
+            },
+        },
     },
 }
 
