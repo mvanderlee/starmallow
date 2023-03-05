@@ -1,17 +1,9 @@
 '''Test Resolved Params'''
 
-from typing import Any, Dict, Literal
-
-import marshmallow as ma
-import marshmallow.fields as mf
 import pytest
-from marshmallow_dataclass import dataclass as ma_dataclass
-from starlette.background import BackgroundTasks
-from starlette.requests import HTTPConnection, Request
-from starlette.responses import Response
 from starlette.testclient import TestClient
 
-from starmallow import Body, Header, Path, Query, ResolvedParam, StarMallow
+from starmallow import Path, Query, ResolvedParam, StarMallow
 
 from .utils import assert_json
 
