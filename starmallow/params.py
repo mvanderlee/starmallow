@@ -1,11 +1,13 @@
 import logging
 from enum import Enum
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Dict, Iterable
 
 import marshmallow as ma
 import marshmallow.fields as mf
 from marshmallow.utils import is_iterable_but_not_string
 from marshmallow.validate import Length, Range, Regexp
+
+from starmallow.utils import eq_marshmallow_fields
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +20,12 @@ class ParamType(Enum):
     body = 'body'
     form = 'form'
 
+    noparam = 'noparam'
+    resolved = 'resolved'
+
 
 class Param:
+    in_: ParamType = None
 
     def __init__(
         self,
@@ -77,6 +83,20 @@ class Param:
         if self.model and getattr(self.model, 'validators', None) and self.validators:
             logger.warning('Provided validators will override model validators')
 
+    def __eq__(self, other: "Param") -> bool:
+        return (
+            isinstance(other, Param)
+            and self.__class__ == other.__class__
+            and self.in_ == other.in_
+            and self.default == other.default
+            and self.deprecated == other.deprecated
+            and self.include_in_schema == other.include_in_schema
+            and self.title == other.title
+            and eq_marshmallow_fields(self.model, other.model)
+            # Marshmallow Validators don't have an __eq__ function, but the repr should work.
+            and [repr(v) for v in self.validators] == [repr(v) for v in other.validators]
+        )
+
 
 class Path(Param):
     in_ = ParamType.path
@@ -100,3 +120,20 @@ class Body(Param):
 
 class Form(Body):
     in_ = ParamType.form
+
+
+class NoParam:
+    '''
+        Used to tell StarMallow to ignore these arguments as they will be provided by a 3rd party.
+        Typical usecase is if there is a 3rd party decorator that adds these.
+
+        Arguments will not be added to Swagger docs or be validated in any way.
+    '''
+    pass
+
+
+class ResolvedParam:
+    def __init__(self, resolver: Callable[[Any], Any]):
+        self.resolver = resolver
+        # Set when we resolve the routes in the EnpointMixin
+        self.resolver_params: Dict[ParamType, Dict[str, Param]] = {}

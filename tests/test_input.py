@@ -8,9 +8,12 @@ import marshmallow as ma
 import marshmallow.fields as mf
 import pytest
 from marshmallow_dataclass import dataclass as ma_dataclass
+from starlette.background import BackgroundTasks
+from starlette.requests import HTTPConnection, Request
+from starlette.responses import Response
 from starlette.testclient import TestClient
 
-from starmallow import Body, Header, Path, Query, StarMallow
+from starmallow import Body, Header, NoParam, Path, Query, StarMallow
 
 from .utils import assert_json
 
@@ -62,6 +65,38 @@ class MultiHeaderParams:
 @app.get("/path/{item_id}")
 def get_path_id(item_id):
     return item_id
+
+
+# Test with request parameter
+@app.get("/path_with_request/{item_id}")
+def get_path_with_request(item_id, request: Request):
+    return isinstance(request, Request)
+
+
+# Test with httpconnection parameter
+@app.get("/path_with_http_connection/{item_id}")
+def get_path_with_http_connection(item_id, httpconn: HTTPConnection):
+    return isinstance(httpconn, HTTPConnection)
+
+
+# Test with response parameter
+@app.get("/path_with_response/{item_id}")
+def get_path_with_response(item_id, response: Response):
+    return isinstance(response, Response)
+
+
+# Test with background tasks parameter
+@app.get("/path_with_background_tasks/{item_id}")
+def get_path_with_background_tasks(item_id, tasks: BackgroundTasks):
+    return isinstance(tasks, BackgroundTasks)
+
+
+# Test with no field parameter
+@app.get("/path_with_noparam/{item_id}")
+def get_path_with_noparam(item_id, empty: str = NoParam()):
+    # Expected this to be provided by a 3rd party decorator.
+    # Since it isn't, it will be NoParams()
+    return isinstance(empty, NoParam)
 
 
 # Test that type annotation is honored
@@ -187,6 +222,156 @@ openapi_schema = {
                 },
                 "summary": "Get Path Id",
                 "operationId": "get_path_id_path__item_id__get",
+                "parameters": [
+                    {
+                        "required": True,
+                        "schema": {"title": "Item Id"},
+                        "name": "item_id",
+                        "in": "path",
+                    }
+                ],
+            }
+        },
+        "/path_with_request/{item_id}": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                    },
+                },
+                "summary": "Get Path With Request",
+                "operationId": "get_path_with_request_path_with_request__item_id__get",
+                "parameters": [
+                    {
+                        "required": True,
+                        "schema": {"title": "Item Id"},
+                        "name": "item_id",
+                        "in": "path",
+                    }
+                ],
+            }
+        },
+        "/path_with_http_connection/{item_id}": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                    },
+                },
+                "summary": "Get Path With Http Connection",
+                "operationId": "get_path_with_http_connection_path_with_http_connection__item_id__get",
+                "parameters": [
+                    {
+                        "required": True,
+                        "schema": {"title": "Item Id"},
+                        "name": "item_id",
+                        "in": "path",
+                    }
+                ],
+            }
+        },
+        "/path_with_response/{item_id}": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                    },
+                },
+                "summary": "Get Path With Response",
+                "operationId": "get_path_with_response_path_with_response__item_id__get",
+                "parameters": [
+                    {
+                        "required": True,
+                        "schema": {"title": "Item Id"},
+                        "name": "item_id",
+                        "in": "path",
+                    }
+                ],
+            }
+        },
+        "/path_with_background_tasks/{item_id}": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                    },
+                },
+                "summary": "Get Path With Background Tasks",
+                "operationId": "get_path_with_background_tasks_path_with_background_tasks__item_id__get",
+                "parameters": [
+                    {
+                        "required": True,
+                        "schema": {"title": "Item Id"},
+                        "name": "item_id",
+                        "in": "path",
+                    }
+                ],
+            }
+        },
+        "/path_with_noparam/{item_id}": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        },
+                    },
+                },
+                "summary": "Get Path With Noparam",
+                "operationId": "get_path_with_noparam_path_with_noparam__item_id__get",
                 "parameters": [
                     {
                         "required": True,
@@ -733,6 +918,11 @@ openapi_schema = {
     "path,expected_status,expected_response",
     [
         ("/path/5", 200, '5'),
+        ("/path_with_request/5", 200, True),
+        ("/path_with_http_connection/5", 200, True),
+        ("/path_with_response/5", 200, True),
+        ("/path_with_background_tasks/5", 200, True),
+        ("/path_with_noparam/5", 200, True),
         ("/path/int/5", 200, 5),
         ("/path/param/5", 200, 5),
         ("/path/ma_dataclass/5", 200, 5),

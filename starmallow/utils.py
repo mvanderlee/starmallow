@@ -126,7 +126,7 @@ def get_model_field(model: Any, **kwargs) -> mf.Field:
         return get_model_field(subtyp, **kwargs)
 
     # enumerations
-    if not is_generic_type(model) and issubclass(model, Enum):
+    if not is_generic_type(model) and lenient_issubclass(model, Enum):
         return mf.Enum(model, **kwargs)
 
     origin = get_origin(model)
@@ -222,11 +222,24 @@ def lenient_issubclass(cls: Any, class_or_tuple: Union[Type[Any], Tuple[Type[Any
         raise  # pragma: no cover
 
 
+def eq_marshmallow_fields(left: mf.Field, right: mf.Field) -> bool:
+    '''
+        Marshmallow Fields don't have an __eq__ functions.
+        This compares them instead.
+    '''
+    left_dict = left.__dict__.copy()
+    left_dict.pop('_creation_index')
+    right_dict = right.__dict__.copy()
+    right_dict.pop('_creation_index')
+
+    return left_dict == right_dict
+
+
 def __dict_creator__(current, segments, i, hints=()):
     '''
-    Create missing path components. Always create a dictionary.
+        Create missing path components. Always create a dictionary.
 
-    set(obj, segments, value) -> obj
+        set(obj, segments, value) -> obj
     '''
     segment = segments[i]
 
@@ -260,6 +273,9 @@ def deep_dict_update(main_dict: Dict[Any, Any], update_dict: Dict[Any, Any]) -> 
 
 
 def create_response_model(type_: Type[Any]) -> ma.Schema | mf.Field | None:
+    if type_ == inspect._empty:
+        return None
+
     field = get_model_field(type_)
     if field is not None:
         return field

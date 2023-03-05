@@ -27,7 +27,7 @@ from starmallow.decorators import EndpointOptions
 from starmallow.endpoint import EndpointMixin, EndpointModel
 from starmallow.endpoints import APIHTTPEndpoint
 from starmallow.exceptions import RequestValidationError, WebSocketRequestValidationError
-from starmallow.params import Param
+from starmallow.params import Param, ParamType
 from starmallow.responses import JSONResponse
 from starmallow.types import DecoratedCallable
 from starmallow.utils import (
@@ -48,8 +48,8 @@ async def get_body(
     request: Request,
     endpoint_model: "EndpointModel",
 ) -> Union[FormData, bytes, Dict[str, Any]]:
-    is_body_form = bool(endpoint_model.form_params)
-    should_process_body = is_body_form or endpoint_model.body_params
+    is_body_form = bool(endpoint_model.flat_params[ParamType.form])
+    should_process_body = is_body_form or endpoint_model.flat_params[ParamType.body]
     try:
         body: Any = None
         if should_process_body:
@@ -138,21 +138,23 @@ async def get_request_args(
     body = await get_body(request, endpoint_model)
     form_values, form_errors = {}, None
     json_values, json_errors = {}, None
-    if endpoint_model.form_params:
+    form_params = endpoint_model.form_params
+    if form_params:
         form_values, form_errors = request_params_to_args(
             body if body is not None and isinstance(body, FormData) else {},
-            endpoint_model.form_params,
+            form_params,
             # If there is only one parameter defined, then don't namespace by the parameter name
             # Otherwise we honor the namespace: https://fastapi.tiangolo.com/tutorial/body-multiple-params/
-            ignore_namespace=len(endpoint_model.form_params) == 1,
+            ignore_namespace=len(form_params) == 1,
         )
-    if endpoint_model.body_params:
+    body_params = endpoint_model.body_params
+    if body_params:
         json_values, json_errors = request_params_to_args(
             body if body is not None and isinstance(body, Mapping) else {},
-            endpoint_model.body_params,
+            body_params,
             # If there is only one parameter defined, then don't namespace by the parameter name
             # Otherwise we honor the namespace: https://fastapi.tiangolo.com/tutorial/body-multiple-params/
-            ignore_namespace=len(endpoint_model.body_params) == 1,
+            ignore_namespace=len(body_params) == 1,
         )
 
     values = {
@@ -182,6 +184,7 @@ async def get_request_args(
         del response.headers["content-length"]
         response.status_code = None  # type: ignore
 
+    # Handle non-field params
     for param_name, param_type in endpoint_model.non_field_params.items():
         if issubclass(param_type, (HTTPConnection, Request, WebSocket)):
             values[param_name] = request
@@ -192,6 +195,24 @@ async def get_request_args(
                 background_tasks = BackgroundTasks()
             values[param_name] = background_tasks
 
+    # Handle resolved params - reverse so we process the most nested ones first
+    for param_name, resolved_param in reversed(endpoint_model.resolved_params.items()):
+        # Get all known arguments for the resolver.
+        resolver_kwargs = {}
+        for name, parameter in inspect.signature(resolved_param.resolver).parameters.items():
+            if issubclass(parameter.annotation, (HTTPConnection, Request, WebSocket)):
+                resolver_kwargs[name] = request
+            elif issubclass(parameter.annotation, Response):
+                resolver_kwargs[name] = response
+            elif issubclass(parameter.annotation, BackgroundTasks):
+                if background_tasks is None:
+                    background_tasks = BackgroundTasks()
+                resolver_kwargs[name] = background_tasks
+            elif name in values:
+                resolver_kwargs[name] = values[name]
+
+        values[param_name] = resolved_param.resolver(**resolver_kwargs)
+
     return values, errors
 
 
@@ -201,10 +222,16 @@ async def run_endpoint_function(
 ) -> Any:
     assert endpoint_model.call is not None, "endpoint_model.call must be a function"
 
+    kwargs = {
+        name: values[name]
+        for name in inspect.signature(endpoint_model.call).parameters
+        if name in values
+    }
+
     if asyncio.iscoroutinefunction(endpoint_model.call):
-        return await endpoint_model.call(**values)
+        return await endpoint_model.call(**kwargs)
     else:
-        return await run_in_threadpool(endpoint_model.call, **values)
+        return await run_in_threadpool(endpoint_model.call, **kwargs)
 
 
 def websocket_session(func: Callable) -> ASGIApp:

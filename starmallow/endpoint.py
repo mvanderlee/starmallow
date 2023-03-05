@@ -24,7 +24,18 @@ from starlette.requests import HTTPConnection, Request
 from starlette.responses import Response
 from starlette.websockets import WebSocket
 
-from starmallow.params import Body, Cookie, Form, Header, Param, ParamType, Path, Query
+from starmallow.params import (
+    Body,
+    Cookie,
+    Form,
+    Header,
+    NoParam,
+    Param,
+    ParamType,
+    Path,
+    Query,
+    ResolvedParam,
+)
 from starmallow.responses import JSONResponse
 from starmallow.utils import (
     create_response_model,
@@ -46,13 +57,8 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class EndpointModel:
-    path_params: Optional[Dict[str, Path]] = field(default_factory=list)
-    query_params: Optional[Dict[str, Query]] = field(default_factory=list)
-    header_params: Optional[Dict[str, Header]] = field(default_factory=list)
-    cookie_params: Optional[Dict[str, Cookie]] = field(default_factory=list)
-    body_params: Optional[Dict[str, Body]] = field(default_factory=list)
-    form_params: Optional[Dict[str, Form]] = field(default_factory=list)
-    non_field_params: Optional[Dict[str, Type[Any]]] = field(default_factory=list)
+    params: Optional[Dict[ParamType, Dict[str, Param]]] = field(default_factory=dict)
+    flat_params: Optional[Dict[ParamType, Dict[str, Param]]] = field(default_factory=dict)
     name: Optional[str] = None
     path: Optional[str] = None
     methods: Optional[List[str]] = None
@@ -61,6 +67,38 @@ class EndpointModel:
     response_class: Type[Response] = JSONResponse
     status_code: Optional[int] = None
     route: 'APIRoute' = None
+
+    @property
+    def path_params(self) -> Dict[str, Path] | None:
+        return self.flat_params.get(ParamType.path)
+
+    @property
+    def query_params(self) -> Dict[str, Query] | None:
+        return self.flat_params.get(ParamType.query)
+
+    @property
+    def header_params(self) -> Dict[str, Header] | None:
+        return self.flat_params.get(ParamType.header)
+
+    @property
+    def cookie_params(self) -> Dict[str, Cookie] | None:
+        return self.flat_params.get(ParamType.cookie)
+
+    @property
+    def body_params(self) -> Dict[str, Body] | None:
+        return self.flat_params.get(ParamType.body)
+
+    @property
+    def form_params(self) -> Dict[str, Form] | None:
+        return self.flat_params.get(ParamType.form)
+
+    @property
+    def non_field_params(self) -> Dict[str, NoParam] | None:
+        return self.flat_params.get(ParamType.noparam)
+
+    @property
+    def resolved_params(self) -> Dict[str, ResolvedParam] | None:
+        return self.flat_params.get(ParamType.resolved)
 
 
 class SchemaMeta:
@@ -193,18 +231,24 @@ class EndpointMixin:
             except Exception:
                 raise Exception(f'Unknown model type for parameter {parameter.name}, model is {model}')
 
-    def _get_params_from_endpoint(
+    def _get_params(
         self,
-        endpoint: Callable[..., Any],
+        func: Callable[..., Any],
         path: str,
-    ) -> Dict[ParamType, List[Dict[str, Param]]]:
+    ) -> Dict[ParamType, Dict[str, Param]]:
         path_param_names = get_path_param_names(path)
         params = {param_type: {} for param_type in ParamType}
-        # Special case for non-field parameters
-        params[None] = {}
-        for name, parameter in inspect.signature(endpoint).parameters.items():
-            if name == 'self' and '.' in endpoint.__qualname__:
-                # Skip 'self' in APIHTTPEndpoint functions\
+        for name, parameter in inspect.signature(func).parameters.items():
+            if (
+                # Skip 'self' in APIHTTPEndpoint functions
+                (name == 'self' and '.' in func.__qualname__)
+                or isinstance(parameter.default, NoParam)
+            ):
+                continue
+            elif isinstance(parameter.default, ResolvedParam):
+                resolved_param: ResolvedParam = parameter.default
+                resolved_param.resolver_params = self._get_params(resolved_param.resolver, path=path)
+                params[ParamType.resolved][name] = resolved_param
                 continue
             elif lenient_issubclass(
                 parameter.annotation,
@@ -216,7 +260,7 @@ class EndpointMixin:
                     BackgroundTasks,
                 )
             ):
-                params[None][name] = parameter.annotation
+                params[ParamType.noparam][name] = parameter.annotation
                 continue
 
             model = self._get_param_model(parameter)
@@ -271,7 +315,7 @@ class EndpointMixin:
         response_model: Optional[ma.Schema] = None,
         response_class: Type[Response] = JSONResponse,
     ) -> EndpointModel:
-        params = self._get_params_from_endpoint(endpoint, path)
+        params = self._get_params(endpoint, path)
 
         response_model = create_response_model(response_model or inspect.signature(endpoint).return_annotation)
 
@@ -280,15 +324,55 @@ class EndpointMixin:
             name=name,
             methods=methods,
             call=endpoint,
-            path_params=params[ParamType.path],
-            query_params=params[ParamType.query],
-            header_params=params[ParamType.header],
-            cookie_params=params[ParamType.cookie],
-            body_params=params[ParamType.body],
-            form_params=params[ParamType.form],
-            non_field_params=params[None],
+            params=params,
+            flat_params=flatten_resolved_parameters(params),
             response_model=response_model,
             response_class=response_class,
             status_code=status_code,
             route=route,
         )
+
+
+def safe_merge_params(
+    left: Dict[str, Param],
+    right: Dict[str, Param],
+) -> Dict[str, Param]:
+    res = left.copy()
+    for name, param in right.items():
+        if name not in left:
+            res[name] = param
+        elif param != left[name]:
+            raise AssertionError(f"Parameter {name} has conflicting definitions. {left[name]} != {param}")
+
+    return res
+
+
+def safe_merge_all_params(
+    left: Dict[ParamType, Dict[str, Param]],
+    right: Dict[ParamType, Dict[str, Param]],
+) -> Dict[ParamType, Dict[str, Param]]:
+    res = {
+        param_type: safe_merge_params(left[param_type], right[param_type])
+        for param_type in ParamType
+    }
+
+    return res
+
+
+def flatten_resolved_parameters(
+    resolved_params: Dict[ParamType, Dict[str, Param]]
+) -> Dict[ParamType, Dict[str, Param]]:
+    # flat_params = {param_type: {} for param_type in ParamType}
+    flat_params = resolved_params.copy()
+    for param in resolved_params[ParamType.resolved].values():
+        if not param.resolver_params:
+            continue
+
+        flat_params = safe_merge_all_params(flat_params, param.resolver_params)
+
+        if param.resolver_params[ParamType.resolved]:
+            flat_nested_params = flatten_resolved_parameters(param.resolver_params)
+
+            flat_params = safe_merge_all_params(flat_params, flat_nested_params)
+
+    return flat_params
