@@ -223,7 +223,10 @@ class EndpointMixin:
             return SchemaModel(model(), **kwargs)
         elif is_marshmallow_field(model):
             if model.load_default is not None and model.load_default != kwargs.get('load_default', ma.missing):
-                logger.warning(f"'{parameter.name}' model and annotation have different 'load_default' values. {model.load_default} <> {kwargs.get('load_default', ma.missing)}")
+                logger.warning(
+                    f"'{parameter.name}' model and annotation have different 'load_default' values."
+                    + f" {model.load_default} <> {kwargs.get('load_default', ma.missing)}",
+                )
 
             model.required = kwargs['required']
             model.load_default = kwargs.get('load_default', ma.missing)
@@ -233,8 +236,8 @@ class EndpointMixin:
         else:
             try:
                 return get_model_field(model, **kwargs)
-            except Exception:
-                raise Exception(f'Unknown model type for parameter {parameter.name}, model is {model}')
+            except Exception as e:
+                raise Exception(f'Unknown model type for parameter {parameter.name}, model is {model}') from e
 
     def get_resolved_param(self, parameter: inspect.Parameter, path: str) -> ResolvedParam:
         resolved_param: ResolvedParam = parameter.default

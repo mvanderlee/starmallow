@@ -31,7 +31,9 @@ class EndpointOptions:
     # Sets the OpenAPI operationId to be used in your path operation
     operation_id: Optional[str] = None
     # If operation_id is None, this function will be used to create one.
-    generate_unique_id_function: Callable[["APIRoute"], str] = field(default_factory=lambda: Default(generate_unique_id))
+    generate_unique_id_function: Callable[["APIRoute"], str] = field(
+        default_factory=lambda: Default(generate_unique_id),
+    )
     # OpenAPI tags
     tags: Optional[List[Union[str, Enum]]] = None
     # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.

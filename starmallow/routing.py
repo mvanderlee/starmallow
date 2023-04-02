@@ -104,7 +104,10 @@ def request_params_to_args(
                     # Load model from entire params
                     values[field_name] = param.model.load(received_params, unknown=ma.EXCLUDE)
                 else:
-                    values[field_name] = param.model.load(received_params.get(field_name, ma.missing), unknown=ma.EXCLUDE)
+                    values[field_name] = param.model.load(
+                        received_params.get(field_name, ma.missing),
+                        unknown=ma.EXCLUDE,
+                    )
             except ma.ValidationError as error:
                 error_store.store_error(error.messages)
         else:

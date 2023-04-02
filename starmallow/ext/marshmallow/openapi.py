@@ -124,7 +124,7 @@ class OpenAPIConverter(ApiSpecOpenAPIConverter):
             if x_prefix
             else (
                 'exclusiveMinimum'
-                if any(not getattr(validator, 'min_inclusive') for validator in validators)
+                if any(not getattr(validator, 'min_inclusive') for validator in validators)  # noqa: B009
                 else 'minimum'
             )
         )
@@ -133,7 +133,7 @@ class OpenAPIConverter(ApiSpecOpenAPIConverter):
             if x_prefix
             else (
                 'exclusiveMaximum'
-                if any(not getattr(validator, 'max_inclusive') for validator in validators)
+                if any(not getattr(validator, 'max_inclusive') for validator in validators)  # noqa: B009
                 else 'maximum'
             )
         )

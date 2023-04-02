@@ -17,7 +17,7 @@ def get_version(package):
 setup(
     name='StarMallow',
     version=get_version("starmallow"),
-    description='TechLock Query Service',
+    description='StarMallow Framework',
     author='Michiel Vanderlee',
     author_email='jmt.vanderlee@gmail.com',
     license="MIT",

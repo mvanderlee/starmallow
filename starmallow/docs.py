@@ -196,5 +196,5 @@ def get_swagger_ui_oauth2_redirect_html() -> HTMLResponse:
     </script>
     </body>
     </html>
-        """
+    """  # noqa: E501
     return HTMLResponse(content=html)

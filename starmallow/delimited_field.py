@@ -18,8 +18,6 @@ tells webargs where to parse the request argument from.
 from typing import Union
 
 import marshmallow as ma
-# Expose all fields from marshmallow.fields.
-from marshmallow.fields import *  # noqa: F40
 
 
 class DelimitedFieldMixin:

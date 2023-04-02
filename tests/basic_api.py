@@ -321,7 +321,16 @@ def get_path_ma_param_ge_int(item_id: int = Path(validators=Range(min=3))):
 
 
 @app.get("/path/ma-param-lt-gt-int/{item_id}")
-def get_path_ma_param_lt_gt_int(item_id: int = Path(validators=Range(min=1, max=3, min_inclusive=False, max_inclusive=False))):
+def get_path_ma_param_lt_gt_int(
+    item_id: int = Path(
+        validators=Range(
+            min=1,
+            max=3,
+            min_inclusive=False,
+            max_inclusive=False,
+        ),
+    ),
+):
     return item_id
 
 

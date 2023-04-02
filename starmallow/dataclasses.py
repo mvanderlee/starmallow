@@ -6,7 +6,10 @@ from typing import Any, Callable, Dict
 # These fields exist as helpers to write more clear code.
 #
 # Allowing us to from:
-#   entity_id: UUIDType = field(default=None, metadata=dict(dump_only=True, metadata=dict(help='Unique ID of the entity.', filterable=True)))
+#   entity_id: UUIDType = field(
+#       default=None,
+#       metadata=dict(dump_only=True, metadata=dict(help='Unique ID of the entity.', filterable=True))
+#   )
 # to
 #   entity_id: UUIDType = optional_field(dump_only=True, help='Unique ID of the entity.')
 ##############################################################
