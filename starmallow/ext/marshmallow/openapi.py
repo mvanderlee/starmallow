@@ -11,8 +11,8 @@ from apispec.ext.marshmallow.field_converter import (
     make_type_list,
 )
 from apispec.ext.marshmallow.openapi import OpenAPIConverter as ApiSpecOpenAPIConverter
-from apispec.utils import OpenAPIVersion
 from marshmallow.utils import is_collection
+from packaging.version import Version
 
 from starmallow.utils import MARSHMALLOW_ITERABLES
 
@@ -86,7 +86,7 @@ class OpenAPIConverter(ApiSpecOpenAPIConverter):
 
     def __init__(
         self,
-        openapi_version: OpenAPIVersion | str,
+        openapi_version: Version | str,
         schema_name_resolver,
         spec: APISpec,
     ) -> None:

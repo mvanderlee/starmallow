@@ -1,4 +1,3 @@
-
 import inspect
 import logging
 from dataclasses import dataclass, field
@@ -135,12 +134,15 @@ class SchemaModel(ma.Schema):
                 schema.Meta.title = self.title
 
     def to_nested(self):
+        metadata = self.kwargs.get('metadata') or {}
+        metadata['title'] = self.title
+
         return mf.Nested(
             self.schema,
             required=self.required,
             load_default=self.load_default,
-            title=self.title,
             **self.kwargs,
+            metadata=metadata,
         )
 
     def load(

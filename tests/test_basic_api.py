@@ -399,7 +399,7 @@ openapi_schema = {
                 "parameters": [
                     {
                         "required": True,
-                        "schema": {"title": "Item Id", "enum": ["optionA", "optionB"]},
+                        "schema": {"title": "Item Id", "enum": ["optionA", "optionB"], "type": "string"},
                         "name": "item_id",
                         "in": "path",
                     },

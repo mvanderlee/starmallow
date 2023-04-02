@@ -86,10 +86,11 @@ class SchemaRegistry(dict):
         try:
             schema = super().__getitem__(schema_class)
         except KeyError:
+            component_id = schema_class.__name__
             try:
-                schema = self.spec.components.schemas.__getitem__(schema_class.__name__)
+                schema = self.spec.components.schemas.__getitem__(component_id)
             except KeyError:
-                self.spec.components.schema(name=schema_class.__name__, schema=item)
+                self.spec.components.schema(component_id=component_id, schema=item)
 
             schema = self.resolver.resolve_schema_dict(item)
             super().__setitem__(schema_class, schema)
@@ -243,7 +244,7 @@ class SchemaGenerator(BaseSchemaGenerator):
 
             schema_by_media_type = {}
             for media_type, component in component_by_media_type.items():
-                self.spec.components.schema(name=component_schema_id, component=component)
+                self.spec.components.schema(component_id=component_schema_id, component=component)
 
                 schema_by_media_type[media_type] = {
                     "schema": {

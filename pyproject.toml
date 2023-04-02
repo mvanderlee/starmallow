@@ -39,12 +39,12 @@ classifiers = [
     "Topic :: Internet :: WWW/HTTP",
 ]
 dependencies = [
-  'apispec[marshmallow]>=5.1,<6',
-  'dpath>=2.0.6,<3',
-  "marshmallow>=3.11.0,<4",
-  "marshmallow-dataclass>=8.3.1,<9",
-  "python-multipart >=0.0.5,<0.0.6",
-  "pyyaml>=5,<6",
+  "apispec[marshmallow]>=6,<7",
+  "dpath>=2.1.0,<3",
+  "marshmallow>=3.18.0,<4",
+  "marshmallow-dataclass>=8.5.1,<9",
+  "python-multipart>=0.0.5,<0.0.7",
+  "pyyaml>=5.4.1",
   "starlette>=0.19,<1",
 ]
 dynamic = ["version"]
@@ -55,6 +55,7 @@ Homepage = "https://github.com/mvanderlee/starmallow"
 
 [project.optional-dependencies]
 test = [
+  "coverage[toml] >= 6.5.0,< 8.0",
   "mypy>=1.1.1,<2",
   "pytest >=7.1.3,<8.0.0",
   "ruff ==0.0.260",
@@ -64,13 +65,19 @@ dev = [
   "pre-commit >=2.17.0,<3.0.0",
 ]
 
+[tool.hatch.version]
+path = "starmallow/__init__.py"
 
 [tool.isort]
 profile = "hug"
 line_length = 100
 
-[tool.mypy]
-strict = true
+[tool.coverage.run]
+parallel = true
+source = [
+    "tests",
+    "starmallow"
+]
 
 [tool.ruff]
 select = [

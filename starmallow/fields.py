@@ -9,17 +9,20 @@ from .delimited_field import DelimitedFieldMixin
 
 class DelimitedListUUID(DelimitedFieldMixin, mf.List):
     def __init__(self, *, delimiter: str | None = None, **kwargs):
-        super().__init__(mf.UUID(), delimiter=delimiter, **kwargs)
+        self.delimiter = delimiter or self.delimiter
+        super().__init__(mf.UUID(), **kwargs)
 
 
 class DelimitedListStr(DelimitedFieldMixin, mf.List):
     def __init__(self, *, delimiter: str | None = None, **kwargs):
-        super().__init__(mf.String(), delimiter=delimiter, **kwargs)
+        self.delimiter = delimiter or self.delimiter
+        super().__init__(mf.String(), **kwargs)
 
 
 class DelimitedListInt(DelimitedFieldMixin, mf.List):
     def __init__(self, *, delimiter: str | None = None, **kwargs):
-        super().__init__(mf.Integer(), delimiter=delimiter, **kwargs)
+        self.delimiter = delimiter or self.delimiter
+        super().__init__(mf.Integer(), **kwargs)
 
 
 class HttpUrl(mf.Url):

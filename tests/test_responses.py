@@ -306,7 +306,7 @@ openapi_schema = {
                 "responses": {
                     "200": {
                         "description": "Successful Response",
-                        "content": {"application/json": {"schema": {"enum": ["optionA", "optionB"]}}},
+                        "content": {"application/json": {"schema": {"enum": ["optionA", "optionB"], "type": "string"}}},
                     },
                 },
                 "summary": "Get Path Enum",
