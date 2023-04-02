@@ -6,6 +6,8 @@ from starlette.testclient import TestClient
 
 from starmallow import StarMallow
 
+from .utils import assert_json
+
 app = StarMallow()
 
 
@@ -117,4 +119,4 @@ client = TestClient(app)
 def test_openapi_schema():
     response = client.get("/openapi.json")
     assert response.status_code == 200, response.text
-    assert response.json() == openapi_schema
+    assert_json(response.json(), openapi_schema)

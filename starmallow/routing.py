@@ -38,6 +38,7 @@ from starmallow.utils import (
     is_body_allowed_for_status_code,
     is_marshmallow_field,
     is_marshmallow_schema,
+    lenient_issubclass,
 )
 from starmallow.websockets import APIWebSocket
 
@@ -186,32 +187,42 @@ async def get_request_args(
 
     # Handle non-field params
     for param_name, param_type in endpoint_model.non_field_params.items():
-        if issubclass(param_type, (HTTPConnection, Request, WebSocket)):
+        if lenient_issubclass(param_type, (HTTPConnection, Request, WebSocket)):
             values[param_name] = request
-        elif issubclass(param_type, Response):
+        elif lenient_issubclass(param_type, Response):
             values[param_name] = response
-        elif issubclass(param_type, BackgroundTasks):
+        elif lenient_issubclass(param_type, BackgroundTasks):
             if background_tasks is None:
                 background_tasks = BackgroundTasks()
             values[param_name] = background_tasks
 
-    # Handle resolved params - reverse so we process the most nested ones first
+    # Handle resolved params - reverse resolved params so we process the most nested ones first
     for param_name, resolved_param in reversed(endpoint_model.resolved_params.items()):
         # Get all known arguments for the resolver.
         resolver_kwargs = {}
         for name, parameter in inspect.signature(resolved_param.resolver).parameters.items():
-            if issubclass(parameter.annotation, (HTTPConnection, Request, WebSocket)):
+            if lenient_issubclass(parameter.annotation, (HTTPConnection, Request, WebSocket)):
                 resolver_kwargs[name] = request
-            elif issubclass(parameter.annotation, Response):
+            elif lenient_issubclass(parameter.annotation, Response):
                 resolver_kwargs[name] = response
-            elif issubclass(parameter.annotation, BackgroundTasks):
+            elif lenient_issubclass(parameter.annotation, BackgroundTasks):
                 if background_tasks is None:
                     background_tasks = BackgroundTasks()
                 resolver_kwargs[name] = background_tasks
             elif name in values:
                 resolver_kwargs[name] = values[name]
 
-        values[param_name] = resolved_param.resolver(**resolver_kwargs)
+        # Resolver can be a class with __call__ function
+        resolver = resolved_param.resolver
+        if not inspect.isfunction(resolver) and callable(resolver):
+            resolver = resolver.__call__
+        elif not inspect.isfunction(resolver):
+            raise TypeError(f'{param_name} = {resolved_param} resolver is not a function or callable')
+
+        if asyncio.iscoroutinefunction(resolver):
+            values[param_name] = await resolver(**resolver_kwargs)
+        else:
+            values[param_name] = resolver(**resolver_kwargs)
 
     return values, errors
 

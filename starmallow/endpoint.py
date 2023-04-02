@@ -35,6 +35,7 @@ from starmallow.params import (
     Path,
     Query,
     ResolvedParam,
+    Security,
 )
 from starmallow.responses import JSONResponse
 from starmallow.utils import (
@@ -99,6 +100,10 @@ class EndpointModel:
     @property
     def resolved_params(self) -> Dict[str, ResolvedParam] | None:
         return self.flat_params.get(ParamType.resolved)
+
+    @property
+    def security_params(self) -> Dict[str, Security] | None:
+        return self.flat_params.get(ParamType.security)
 
 
 class SchemaMeta:
@@ -231,6 +236,18 @@ class EndpointMixin:
             except Exception:
                 raise Exception(f'Unknown model type for parameter {parameter.name}, model is {model}')
 
+    def get_resolved_param(self, parameter: inspect.Parameter, path: str) -> ResolvedParam:
+        resolved_param: ResolvedParam = parameter.default
+
+        # Supports `field = ResolvedParam(resolver_callable)
+        # and field: resolver_callable = ResolvedParam()
+        if resolved_param.resolver is None:
+            resolved_param.resolver = parameter.annotation
+
+        resolved_param.resolver_params = self._get_params(resolved_param.resolver, path=path)
+
+        return resolved_param
+
     def _get_params(
         self,
         func: Callable[..., Any],
@@ -245,9 +262,14 @@ class EndpointMixin:
                 or isinstance(parameter.default, NoParam)
             ):
                 continue
+            elif isinstance(parameter.default, Security):
+                security_param: Security = self.get_resolved_param(parameter, path=path)
+                params[ParamType.security][name] = security_param
+                # add to resolved so we can properly order them based which to execute first
+                params[ParamType.resolved][name] = security_param
+                continue
             elif isinstance(parameter.default, ResolvedParam):
-                resolved_param: ResolvedParam = parameter.default
-                resolved_param.resolver_params = self._get_params(resolved_param.resolver, path=path)
+                resolved_param: ResolvedParam = self.get_resolved_param(parameter, path=path)
                 params[ParamType.resolved][name] = resolved_param
                 continue
             elif lenient_issubclass(
@@ -325,7 +347,7 @@ class EndpointMixin:
             methods=methods,
             call=endpoint,
             params=params,
-            flat_params=flatten_resolved_parameters(params),
+            flat_params=flatten_parameters(params),
             response_model=response_model,
             response_class=response_class,
             status_code=status_code,
@@ -359,19 +381,19 @@ def safe_merge_all_params(
     return res
 
 
-def flatten_resolved_parameters(
-    resolved_params: Dict[ParamType, Dict[str, Param]],
+def flatten_parameters(
+    params: Dict[ParamType, Dict[str, Param]],
 ) -> Dict[ParamType, Dict[str, Param]]:
     # flat_params = {param_type: {} for param_type in ParamType}
-    flat_params = resolved_params.copy()
-    for param in resolved_params[ParamType.resolved].values():
+    flat_params = params.copy()
+    for param in params[ParamType.resolved].values():
         if not param.resolver_params:
             continue
 
         flat_params = safe_merge_all_params(flat_params, param.resolver_params)
 
         if param.resolver_params[ParamType.resolved]:
-            flat_nested_params = flatten_resolved_parameters(param.resolver_params)
+            flat_nested_params = flatten_parameters(param.resolver_params)
 
             flat_params = safe_merge_all_params(flat_params, flat_nested_params)
 

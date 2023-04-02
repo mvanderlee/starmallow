@@ -182,15 +182,7 @@ openapi_schema = {
                     "content": {
                         "application/json": {
                             "schema": {
-                                "properties": {
-                                    "item_ids": {
-                                        "items": {"type": "integer"},
-                                        "title": "Item Ids",
-                                        "type": "array",
-                                    },
-                                },
-                                "required": ["item_ids"],
-                                "type": "object",
+                                "$ref": "#/components/schemas/Body_post_json_ids_json_post",
                             },
                         },
                     },
@@ -201,6 +193,18 @@ openapi_schema = {
     },
     "components": {
         "schemas": {
+            "Body_post_json_ids_json_post": {
+                "properties": {
+                    "item_ids": {
+                        "items": {"type": "integer"},
+                        "title": "Item Ids",
+                        "type": "array",
+                    },
+                },
+                "required": ["item_ids"],
+                "title": "Body_post_json_ids_json_post",
+                "type": "object",
+            },
             "HTTPValidationError": {
                 'properties': {
                     'detail': {

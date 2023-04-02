@@ -4,7 +4,7 @@ import itertools
 import re
 import warnings
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Sequence, Set, Type
+from typing import Any, Dict, List, Optional, Sequence, Set, Tuple, Type
 
 import marshmallow as ma
 import marshmallow.fields as mf
@@ -18,8 +18,10 @@ from starlette.schemas import BaseSchemaGenerator
 from starmallow.datastructures import DefaultPlaceholder
 from starmallow.endpoint import EndpointModel, SchemaModel
 from starmallow.ext.marshmallow import MarshmallowPlugin
+from starmallow.params import Body
 from starmallow.responses import HTTPValidationError
 from starmallow.routing import APIRoute
+from starmallow.security.base import SecurityBaseResolver
 from starmallow.utils import (
     deep_dict_update,
     dict_safe_add,
@@ -44,8 +46,32 @@ class SchemaRegistry(dict):
         self.spec = spec
         self.converter = converter
         self.resolver = resolver
+        # Cache security schemas seperately
+        self.security_references = {}
+
+    def _get_security_item(self, item: SecurityBaseResolver):
+        component_id = item.__class__.__name__
+        model = item.model
+
+        try:
+            sec_obj = self.security_references.__getitem__(component_id)
+        except KeyError:
+            # Use marshmallow_dataclass to dump itself
+            sec_schema = model.Schema().dump(model)
+            sec_schema['type'] = model.type.value
+
+            self.spec.components.security_scheme(component_id=component_id, component=sec_schema)
+
+            # TODO: fix scopes for oauth
+            sec_obj = {component_id: []}
+            self.security_references.__setitem__(component_id, sec_obj)
+
+        return sec_obj
 
     def __getitem__(self, item):
+        if isinstance(item, SecurityBaseResolver):
+            return self._get_security_item(item)
+
         if is_marshmallow_field(item):
             # If marshmallow field, just resolve it here without caching
             prop = self.converter.field2property(item)
@@ -166,23 +192,41 @@ class SchemaGenerator(BaseSchemaGenerator):
         endpoint: EndpointModel,
         schema: Dict,
     ):
+        all_body_params: List[Tuple[str, Body]] = [
+            *endpoint.body_params.items(),
+            *endpoint.form_params.items(),
+        ]
+        schema_by_media_type = {}
+
         # If only 1 schema is defined. Use it as the entire schema.
-        if len(endpoint.body_params) == 1 and isinstance(list(endpoint.body_params.values())[0].model, ma.Schema):
-            body_param = list(endpoint.body_params.values())[0]
+        if len(all_body_params) == 1 and isinstance(all_body_params[0][1].model, ma.Schema):
+            body_param = all_body_params[0][1]
             if body_param.include_in_schema:
                 endpoint_schema = self.schemas[body_param.model]
+
+            if endpoint_schema:
+                schema_by_media_type[body_param.media_type] = {'schema': endpoint_schema}
 
         # Otherwise, loop over all body params and build a new schema from the key value pairs.
         # This mimic's FastApi's behaviour: https://fastapi.tiangolo.com/tutorial/body-multiple-params/#multiple-body-parameters
         else:
-            required_properties = []
-            endpoint_properties = {}
-            endpoint_schema = {
-                "type": "object",
-                "properties": endpoint_properties,
-                "required": required_properties,
-            }
-            for name, value in endpoint.body_params.items():
+            operation_id = endpoint.route.operation_id or endpoint.route.unique_id
+            component_schema_id = f'Body_{operation_id}'
+
+            def new_endpoint_schema():
+                return {
+                    "title": component_schema_id,
+                    "type": "object",
+                    "properties": {},
+                    "required": [],
+                }
+
+            component_by_media_type = defaultdict(new_endpoint_schema)
+            for name, value in all_body_params:
+                media_component = component_by_media_type[value.media_type]
+                endpoint_properties: Dict[str, Any] = media_component['properties']
+                required_properties: List[Any] = media_component['required']
+
                 if value.include_in_schema:
                     if isinstance(value.model, ma.Schema):
                         endpoint_properties[name] = self.schemas[value.model]
@@ -194,13 +238,34 @@ class SchemaGenerator(BaseSchemaGenerator):
                         if value.model.required:
                             required_properties.append(name)
 
-        if endpoint_schema:
+            if len(component_by_media_type) > 1:
+                raise Exception('Multiple request media types detected.')
+
+            schema_by_media_type = {}
+            for media_type, component in component_by_media_type.items():
+                self.spec.components.schema(name=component_schema_id, component=component)
+
+                schema_by_media_type[media_type] = {
+                    "schema": {
+                        "$ref": f"#/components/schemas/{component_schema_id}",
+                    },
+                }
+
+        if schema_by_media_type:
             schema['requestBody'] = {
-                'content': {
-                    endpoint.response_class.media_type: {'schema': endpoint_schema},
-                },
+                'content': schema_by_media_type,
                 'required': True,
             }
+
+    def _add_security_params(
+        self,
+        endpoint: EndpointModel,
+        schema: Dict,
+    ):
+        schema['security'] = [
+            self.schemas[security_param.resolver]
+            for param_name, security_param in endpoint.security_params.items()
+        ]
 
     def _add_endpoint_response(
         self,
@@ -332,14 +397,18 @@ class SchemaGenerator(BaseSchemaGenerator):
             self._add_endpoint_parameters(endpoint, schema)
 
         # Body
-        if endpoint.body_params:
+        if endpoint.body_params or endpoint.form_params:
             self._add_endpoint_body(endpoint, schema)
+
+        # Security
+        if endpoint.security_params:
+            self._add_security_params(endpoint, schema)
 
         # Response
         self._add_endpoint_response(endpoint, schema)
 
         # Add default error response
-        if (any_params or endpoint.body_params) and not any(
+        if (any_params or endpoint.body_params or endpoint.form_params) and not any(
             [
                 status in schema['responses']
                 for status in ["422", "4XX", "default"]

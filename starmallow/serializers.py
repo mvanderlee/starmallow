@@ -1,9 +1,12 @@
 import json
+import logging
 from dataclasses import asdict, is_dataclass
 from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
 from uuid import UUID
+
+logger = logging.getLogger(__name__)
 
 
 class JSONEncoder(json.JSONEncoder):
@@ -25,6 +28,14 @@ class JSONEncoder(json.JSONEncoder):
             return asdict(obj)
         elif isinstance(obj, Enum):
             return obj.name
+        # If a class and not any of the default types, automatically try to parse the object's attributes
+        elif not isinstance(obj, (str, int, float, type(None), list, dict)):
+            try:
+                data = vars(obj)
+            except Exception:
+                logger.warning(f'Failed to encode {obj}', exc_info=True)
+            else:
+                return data
         return json.JSONEncoder.default(self, obj)
 
     def encode(self, o):

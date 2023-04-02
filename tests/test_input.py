@@ -652,16 +652,7 @@ openapi_schema = {
                     "content": {
                         "application/json": {
                             "schema": {
-                                "type": "object",
-                                "properties": {
-                                    "weight": {
-                                        "type": "number",
-                                        "title": "Weight",
-                                    },
-                                },
-                                "required": [
-                                    "weight",
-                                ],
+                                "$ref": "#/components/schemas/Body_post_multi_flat_multi_flat__item_id___sub_item_id__post",
                             },
                         },
                     },
@@ -830,6 +821,19 @@ openapi_schema = {
                 'required': ['detail', 'status_code'],
                 'title': 'HTTPValidationError',
                 'type': 'object',
+            },
+            "Body_post_multi_flat_multi_flat__item_id___sub_item_id__post": {
+                "type": "object",
+                "properties": {
+                    "weight": {
+                        "type": "number",
+                        "title": "Weight",
+                    },
+                },
+                "required": [
+                    "weight",
+                ],
+                "title": "Body_post_multi_flat_multi_flat__item_id___sub_item_id__post",
             },
             "PathParams": {
                 "type": "object",

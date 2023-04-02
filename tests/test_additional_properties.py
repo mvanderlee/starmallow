@@ -5,6 +5,8 @@ from starlette.testclient import TestClient
 
 from starmallow import StarMallow
 
+from .utils import assert_json
+
 app = StarMallow()
 
 
@@ -98,7 +100,7 @@ openapi_schema = {
 def test_additional_properties_schema():
     response = client.get("/openapi.json")
     assert response.status_code == 200, response.text
-    assert response.json() == openapi_schema
+    assert_json(response.json(), openapi_schema)
 
 
 def test_additional_properties_post():

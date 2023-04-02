@@ -1,12 +1,13 @@
 import logging
 from enum import Enum
-from typing import Any, Callable, Dict, Iterable
+from typing import Any, Callable, Dict, Iterable, Optional, Sequence
 
 import marshmallow as ma
 import marshmallow.fields as mf
 from marshmallow.utils import is_iterable_but_not_string
 from marshmallow.validate import Length, Range, Regexp
 
+from starmallow.security.base import SecurityBaseResolver
 from starmallow.utils import eq_marshmallow_fields
 
 logger = logging.getLogger(__name__)
@@ -22,6 +23,7 @@ class ParamType(Enum):
 
     noparam = 'noparam'
     resolved = 'resolved'
+    security = 'security'
 
 
 class Param:
@@ -117,9 +119,89 @@ class Cookie(Param):
 class Body(Param):
     in_ = ParamType.body
 
+    def __init__(
+        self,
+        default: Any = Ellipsis,
+        *,
+        media_type: str = "application/json",
+        deprecated: bool | None = None,
+        include_in_schema: bool = True,
+        model: ma.Schema | mf.Field = None,
+        validators: None
+        | (
+            Callable[[Any], Any]
+            | Iterable[Callable[[Any], Any]]
+        ) = None,
+        # Convience validators
+        gt: float | None = None,
+        ge: float | None = None,
+        lt: float | None = None,
+        le: float | None = None,
+        min_length: int | None = None,
+        max_length: int | None = None,
+        regex: str | None = None,
+        title: str = None,
+    ) -> None:
+        super().__init__(
+            default=default,
+            deprecated=deprecated,
+            include_in_schema=include_in_schema,
+            model=model,
+            validators=validators,
+            gt=gt,
+            ge=ge,
+            lt=lt,
+            le=le,
+            min_length=min_length,
+            max_length=max_length,
+            regex=regex,
+            title=title,
+        )
+        self.media_type = media_type
+
 
 class Form(Body):
     in_ = ParamType.form
+
+    def __init__(
+        self,
+        default: Any = Ellipsis,
+        *,
+        media_type: str = "application/x-www-form-urlencoded",
+        deprecated: bool | None = None,
+        include_in_schema: bool = True,
+        model: ma.Schema | mf.Field = None,
+        validators: None
+        | (
+            Callable[[Any], Any]
+            | Iterable[Callable[[Any], Any]]
+        ) = None,
+        # Convience validators
+        gt: float | None = None,
+        ge: float | None = None,
+        lt: float | None = None,
+        le: float | None = None,
+        min_length: int | None = None,
+        max_length: int | None = None,
+        regex: str | None = None,
+        title: str = None,
+    ) -> None:
+        super().__init__(
+            default=default,
+            deprecated=deprecated,
+            include_in_schema=include_in_schema,
+            model=model,
+            validators=validators,
+            gt=gt,
+            ge=ge,
+            lt=lt,
+            le=le,
+            min_length=min_length,
+            max_length=max_length,
+            regex=regex,
+            title=title,
+            media_type=media_type,
+        )
 
 
 class NoParam:
@@ -133,7 +215,21 @@ class NoParam:
 
 
 class ResolvedParam:
-    def __init__(self, resolver: Callable[[Any], Any]):
+    def __init__(self, resolver: Callable[[Any], Any] = None):
         self.resolver = resolver
         # Set when we resolve the routes in the EnpointMixin
         self.resolver_params: Dict[ParamType, Dict[str, Param]] = {}
+
+
+class Security(ResolvedParam):
+
+    def __init__(
+        self,
+        resolver: SecurityBaseResolver = None,
+        scopes: Optional[Sequence[str]] = None,
+    ):
+        # Not calling super so that the resolver typehinting actually works in VSCode
+        self.resolver = resolver
+        # Set when we resolve the routes in the EnpointMixin
+        self.resolver_params: Dict[ParamType, Dict[str, Param]] = {}
+        self.scopes = scopes or []
