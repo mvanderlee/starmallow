@@ -21,10 +21,12 @@ from starlette.datastructures import State
 from starlette.exceptions import HTTPException
 from starlette.middleware import Middleware
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.errors import ServerErrorMiddleware
+from starlette.middleware.exceptions import ExceptionMiddleware
 from starlette.requests import Request
 from starlette.responses import HTMLResponse, Response
 from starlette.routing import BaseRoute
-from starlette.types import Receive, Scope, Send
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from starmallow.datastructures import Default
 from starmallow.docs import get_redoc_html, get_swagger_ui_html, get_swagger_ui_oauth2_redirect_html
@@ -34,6 +36,7 @@ from starmallow.exception_handlers import (
     request_validation_exception_handler,
 )
 from starmallow.exceptions import RequestValidationError
+from starmallow.middleware import AsyncExitStackMiddleware
 from starmallow.responses import JSONResponse
 from starmallow.routing import APIRoute, APIRouter
 from starmallow.schema_generator import SchemaGenerator
@@ -121,6 +124,36 @@ class StarMallow(Starlette):
         self.user_middleware = [] if middleware is None else list(middleware)
         self.middleware_stack = self.build_middleware_stack()
         self.init_openapi()
+
+    def build_middleware_stack(self) -> ASGIApp:
+        debug = self.debug
+        error_handler = None
+        exception_handlers: Dict[
+            Any, Callable[[Request, Exception], Response],
+        ] = {}
+
+        for key, value in self.exception_handlers.items():
+            if key in (500, Exception):
+                error_handler = value
+            else:
+                exception_handlers[key] = value
+
+        middleware = (
+            [Middleware(ServerErrorMiddleware, handler=error_handler, debug=debug)]
+            + self.user_middleware
+            + [
+                Middleware(
+                    ExceptionMiddleware, handlers=exception_handlers, debug=debug,
+                ),
+                # Teardown all ResolvedParam contextmanagers
+                Middleware(AsyncExitStackMiddleware),
+            ]
+        )
+
+        app = self.router
+        for cls, options in reversed(middleware):
+            app = cls(app=app, **options)
+        return app
 
     def openapi(self) -> Dict[str, Any]:
         if not self.openapi_schema:

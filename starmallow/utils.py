@@ -5,6 +5,7 @@ import logging
 import re
 import uuid
 import warnings
+from contextlib import AsyncExitStack, asynccontextmanager, contextmanager
 from dataclasses import is_dataclass
 from decimal import Decimal
 from enum import Enum
@@ -33,6 +34,7 @@ import marshmallow_dataclass.collection_field as collection_field
 from marshmallow.validate import Equal, OneOf
 from typing_inspect import is_final_type, is_generic_type, is_literal_type
 
+from starmallow.concurrency import contextmanager_in_threadpool
 from starmallow.datastructures import DefaultPlaceholder, DefaultType
 
 if TYPE_CHECKING:  # pragma: nocover
@@ -211,6 +213,33 @@ def is_marshmallow_field(obj):
 
 def is_marshmallow_dataclass(obj):
     return is_dataclass(obj) and hasattr(obj, 'Schema') and is_marshmallow_schema(obj.Schema)
+
+
+def is_async_gen_callable(call: Callable[..., Any]) -> bool:
+    if inspect.isasyncgenfunction(call):
+        return True
+    dunder_call = getattr(call, "__call__", None)  # noqa: B004
+    return inspect.isasyncgenfunction(dunder_call)
+
+
+def is_gen_callable(call: Callable[..., Any]) -> bool:
+    if inspect.isgeneratorfunction(call):
+        return True
+    dunder_call = getattr(call, "__call__", None)  # noqa: B004
+    return inspect.isgeneratorfunction(dunder_call)
+
+
+async def solve_generator(
+    *,
+    call: Callable[..., Any],
+    stack: AsyncExitStack,
+    gen_kwargs: Dict[str, Any],
+) -> Any:
+    if is_gen_callable(call):
+        cm = contextmanager_in_threadpool(contextmanager(call)(**gen_kwargs))
+    elif is_async_gen_callable(call):
+        cm = asynccontextmanager(call)(**gen_kwargs)
+    return await stack.enter_async_context(cm)
 
 
 def lenient_issubclass(cls: Any, class_or_tuple: Union[Type[Any], Tuple[Type[Any], ...], None]) -> bool:

@@ -33,7 +33,8 @@ class JSONEncoder(json.JSONEncoder):
             try:
                 data = vars(obj)
             except Exception:
-                logger.warning(f'Failed to encode {obj}', exc_info=True)
+                logger.exception(f'Failed to encode {obj}')
+                return None
             else:
                 return data
         return json.JSONEncoder.default(self, obj)

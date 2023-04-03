@@ -2,6 +2,7 @@ import asyncio
 import functools
 import inspect
 import logging
+from contextlib import AsyncExitStack
 from enum import Enum, IntEnum
 from typing import Any, Callable, Coroutine, Dict, List, Mapping, Optional, Set, Tuple, Type, Union
 
@@ -35,10 +36,13 @@ from starmallow.utils import (
     generate_unique_id,
     get_name,
     get_value_or_default,
+    is_async_gen_callable,
     is_body_allowed_for_status_code,
+    is_gen_callable,
     is_marshmallow_field,
     is_marshmallow_schema,
     lenient_issubclass,
+    solve_generator,
 )
 from starmallow.websockets import APIWebSocket
 
@@ -56,6 +60,9 @@ async def get_body(
         if should_process_body:
             if is_body_form:
                 body = await request.form()
+                stack = request.scope.get("starmallow_astack")
+                assert isinstance(stack, AsyncExitStack)
+                stack.push_async_callback(body.close)
             else:
                 body_bytes = await request.body()
                 if body_bytes:
@@ -222,7 +229,13 @@ async def get_request_args(
         elif not inspect.isfunction(resolver):
             raise TypeError(f'{param_name} = {resolved_param} resolver is not a function or callable')
 
-        if asyncio.iscoroutinefunction(resolver):
+        if is_gen_callable(resolver) or is_async_gen_callable(resolver):
+            stack = request.scope.get("starmallow_astack")
+            assert isinstance(stack, AsyncExitStack)
+            values[param_name] = await solve_generator(
+                call=resolver, stack=stack, gen_kwargs=resolver_kwargs,
+            )
+        elif asyncio.iscoroutinefunction(resolver):
             values[param_name] = await resolver(**resolver_kwargs)
         else:
             values[param_name] = resolver(**resolver_kwargs)
