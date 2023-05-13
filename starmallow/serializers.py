@@ -8,6 +8,22 @@ from uuid import UUID
 
 logger = logging.getLogger(__name__)
 
+def json_default(obj):
+    if isinstance(obj, bytes):
+        return obj.hex()
+    elif isinstance(obj, set):
+        return list(obj)
+    elif isinstance(obj, Decimal):
+        return str(obj)
+    elif isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+    elif isinstance(obj, UUID):
+        return str(obj)
+    elif is_dataclass(obj):
+        return asdict(obj)
+    elif isinstance(obj, Enum):
+        return obj.name
+
 
 class JSONEncoder(json.JSONEncoder):
     '''
