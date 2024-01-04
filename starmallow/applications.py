@@ -122,7 +122,7 @@ class StarMallow(Starlette):
         )
 
         self.user_middleware = [] if middleware is None else list(middleware)
-        self.middleware_stack = self.build_middleware_stack()
+        self.middleware_stack: Union[ASGIApp, None] = None
         self.init_openapi()
 
     def build_middleware_stack(self) -> ASGIApp:
