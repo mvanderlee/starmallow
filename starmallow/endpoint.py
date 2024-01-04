@@ -37,6 +37,7 @@ from starmallow.params import (
     Security,
 )
 from starmallow.responses import JSONResponse
+from starmallow.security.base import SecurityBaseResolver
 from starmallow.utils import (
     create_response_model,
     get_args,
@@ -270,12 +271,16 @@ class EndpointMixin:
             elif isinstance(parameter.default, Security):
                 security_param: Security = self.get_resolved_param(parameter, path=path)
                 params[ParamType.security][name] = security_param
-                # add to resolved so we can properly order them based which to execute first
+                # Add to resolved so we can properly order them based which to execute first
                 params[ParamType.resolved][name] = security_param
                 continue
             elif isinstance(parameter.default, ResolvedParam):
                 resolved_param: ResolvedParam = self.get_resolved_param(parameter, path=path)
                 params[ParamType.resolved][name] = resolved_param
+                # Allow `ResolvedParam(HTTPBearer())`
+                if isinstance(resolved_param.resolver, SecurityBaseResolver):
+                    params[ParamType.security][name] = resolved_param
+
                 continue
             elif lenient_issubclass(
                 parameter.annotation,
