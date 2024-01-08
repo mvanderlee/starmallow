@@ -12,6 +12,7 @@ An example of Pydantic's limitations can be found in [Issue 2277](https://github
 Create a file `main.py` with:
 
 ```python
+from typing import Annotated
 from marshmallow_dataclass import dataclass
 from starmallow import Body, Path, StarMallow
 
@@ -32,7 +33,7 @@ class MyBody:
 
 @app.get("/body")
 async def get_body(body: MyBody = Body()) -> int:
-    return MyBody.item_id
+    return body.item_id
 
 
 # Example with explicit marshmallow schema
@@ -42,6 +43,13 @@ class MyBodySchema(ma.Schema):
 @app.get("/path/body_schema")
 def get_body_from_schema(body: Dict[str, int] = Body(model=MyBodySchema)) -> int:
     return body['item_id']
+
+
+# Example with Annotated
+
+@app.get("/body_annotated")
+async def get_body_annotated(body: Annotated[MyBody, Body()]) -> int:
+    return body.item_id
 ```
 
 ### Run it
