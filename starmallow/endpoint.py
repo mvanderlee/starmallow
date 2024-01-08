@@ -13,6 +13,7 @@ from typing import (
     Optional,
     Type,
     Union,
+    get_origin,
 )
 
 import marshmallow as ma
@@ -22,6 +23,7 @@ from starlette.background import BackgroundTasks
 from starlette.requests import HTTPConnection, Request
 from starlette.responses import Response
 from starlette.websockets import WebSocket
+from typing_extensions import Annotated
 
 from starmallow.params import (
     Body,
@@ -54,6 +56,13 @@ if TYPE_CHECKING:
     from starmallow.routing import APIRoute
 
 logger = logging.getLogger(__name__)
+
+STARMALLOW_PARAM_TYPES = (
+    Param,
+    NoParam,
+    ResolvedParam,
+    mf.Field,
+)
 
 
 @dataclass
@@ -165,25 +174,31 @@ class SchemaModel(ma.Schema):
 
 class EndpointMixin:
 
-    def _get_param_model(self, parameter: inspect.Parameter) -> Union[ma.Schema, mf.Field]:
-        model = parameter.annotation
+    def _get_param_model(
+        self,
+        type_annotation: Any,
+        parameter: Param,
+        parameter_name: str,
+        default_value: Any,
+    ) -> Union[ma.Schema, mf.Field]:
+        model = type_annotation
 
         kwargs = {
             'required': True,
             'metadata': {
                 'title': (
-                    parameter.default.title
-                    if (isinstance(parameter.default, Param) and parameter.default.title)
-                    else parameter.name.title().replace('_', ' ')
+                    parameter.title
+                    if (isinstance(parameter, Param) and parameter.title)
+                    else parameter_name.title().replace('_', ' ')
                 ),
             },
         }
         # Ensure we pass parameter fields into the marshmallow field
-        if isinstance(parameter.default, Param):
-            if parameter.default.validators:
-                kwargs['validate'] = parameter.default.validators
-            if parameter.default.deprecated:
-                kwargs['metadata']['deprecated'] = parameter.default.deprecated
+        if isinstance(parameter, Param):
+            if parameter.validators:
+                kwargs['validate'] = parameter.validators
+            if parameter.deprecated:
+                kwargs['metadata']['deprecated'] = parameter.deprecated
 
         if is_optional(model):
             kwargs.update({
@@ -191,25 +206,25 @@ class EndpointMixin:
                 'required': False,
             })
             # This does not support Union[A,B,C,None]. Only Union[A,None] and Optional[A]
-            model = next((a for a in get_args(parameter.annotation) if a is not None), None)
+            model = next((a for a in get_args(type_annotation) if a is not None), None)
 
-        if isinstance(parameter.default, Param):
+        if isinstance(parameter, Param):
             # If default is not Ellipsis, then it's optional regardless of the typehint.
             # Although it's best practice to also mark the typehint as Optional
-            if parameter.default.default != Ellipsis:
+            if default_value != Ellipsis:
                 kwargs.update({
-                    'load_default': parameter.default.default,
+                    'load_default': default_value,
                     'required': False,
                 })
 
             # Ignore type hint. Use provided model instead.
-            if parameter.default.model is not None:
-                model = parameter.default.model
-        elif parameter.default != inspect._empty:
+            if parameter.model is not None:
+                model = parameter.model
+        elif default_value != inspect._empty:
             # If default is not a Param but is defined, then it's optional regardless of the typehint.
             # Although it's best practice to also mark the typehint as Optional
             kwargs.update({
-                'load_default': parameter.default,
+                'load_default': default_value,
                 'required': False,
             })
 
@@ -227,7 +242,7 @@ class EndpointMixin:
         elif is_marshmallow_field(model):
             if model.load_default is not None and model.load_default != kwargs.get('load_default', ma.missing):
                 logger.warning(
-                    f"'{parameter.name}' model and annotation have different 'load_default' values."
+                    f"'{parameter_name}' model and annotation have different 'load_default' values."
                     + f" {model.load_default} <> {kwargs.get('load_default', ma.missing)}",
                 )
 
@@ -240,15 +255,13 @@ class EndpointMixin:
             try:
                 return get_model_field(model, **kwargs)
             except Exception as e:
-                raise Exception(f'Unknown model type for parameter {parameter.name}, model is {model}') from e
+                raise Exception(f'Unknown model type for parameter {parameter_name}, model is {model}') from e
 
-    def get_resolved_param(self, parameter: inspect.Parameter, path: str) -> ResolvedParam:
-        resolved_param: ResolvedParam = parameter.default
-
+    def get_resolved_param(self, resolved_param: ResolvedParam, annotation: Any, path: str) -> ResolvedParam:
         # Supports `field = ResolvedParam(resolver_callable)
         # and field: resolver_callable = ResolvedParam()
         if resolved_param.resolver is None:
-            resolved_param.resolver = parameter.annotation
+            resolved_param.resolver = annotation
 
         resolved_param.resolver_params = self._get_params(resolved_param.resolver, path=path)
 
@@ -262,28 +275,60 @@ class EndpointMixin:
         path_param_names = get_path_param_names(path)
         params = {param_type: {} for param_type in ParamType}
         for name, parameter in inspect.signature(func).parameters.items():
+            default_value = parameter.default
+
+            # The type annotation. i.e.: 'str' in these `value: str`. Or `value: [str, Query(gt=3)]`
+            type_annotation: Any = inspect._empty
+            # The param to use when looking for Param details.
+            # i.e.: 'Query(gt=3)' in these `value: Query(gt=3)`. Or `value: [str, Query(gt=3)]`
+            starmallow_param: Any = inspect._empty
+            if parameter.annotation is not inspect.Signature.empty:
+                type_annotation = parameter.annotation
+            if isinstance(parameter.default, STARMALLOW_PARAM_TYPES):
+                starmallow_param = parameter.default
+                default_value = getattr(starmallow_param, 'default', None)
+
+            if get_origin(parameter.annotation) is Annotated:
+                annotated_args = get_args(parameter.annotation)
+                type_annotation = annotated_args[0]
+                starmallow_annotations = [
+                    arg
+                    for arg in annotated_args[1:]
+                    if isinstance(arg, STARMALLOW_PARAM_TYPES)
+                ]
+                if starmallow_annotations:
+                    assert starmallow_param is inspect._empty, (
+                        "Cannot specify `Param` in `Annotated` and default value"
+                    f" together for {name!r}"
+                    )
+
+                    starmallow_param = starmallow_annotations[-1]
+                    if (
+                        isinstance(starmallow_param, Param)
+                        and starmallow_param.default is not inspect.Signature.empty
+                        and default_value is inspect.Signature.empty
+                    ):
+                        default_value = starmallow_param.default
+
             if (
                 # Skip 'self' in APIHTTPEndpoint functions
                 (name == 'self' and '.' in func.__qualname__)
-                or isinstance(parameter.default, NoParam)
+                or isinstance(starmallow_param, NoParam)
             ):
                 continue
-            elif isinstance(parameter.default, Security):
-                security_param: Security = self.get_resolved_param(parameter, path=path)
-                params[ParamType.security][name] = security_param
-                # Add to resolved so we can properly order them based which to execute first
-                params[ParamType.resolved][name] = security_param
-                continue
-            elif isinstance(parameter.default, ResolvedParam):
-                resolved_param: ResolvedParam = self.get_resolved_param(parameter, path=path)
+            elif isinstance(starmallow_param, ResolvedParam):
+                resolved_param: ResolvedParam = self.get_resolved_param(starmallow_param, type_annotation, path=path)
                 params[ParamType.resolved][name] = resolved_param
+
+                if isinstance(starmallow_param, Security):
+                    params[ParamType.security][name] = resolved_param
                 # Allow `ResolvedParam(HTTPBearer())`
-                if isinstance(resolved_param.resolver, SecurityBaseResolver):
+                elif isinstance(resolved_param.resolver, SecurityBaseResolver):
                     params[ParamType.security][name] = resolved_param
 
                 continue
             elif lenient_issubclass(
-                parameter.annotation,
+                type_annotation,
                 (
                     Request,
                     WebSocket,
@@ -292,18 +337,18 @@ class EndpointMixin:
                     BackgroundTasks,
                 ),
             ):
-                params[ParamType.noparam][name] = parameter.annotation
+                params[ParamType.noparam][name] = type_annotation
                 continue
 
-            model = self._get_param_model(parameter)
+            model = self._get_param_model(type_annotation, starmallow_param, name, default_value)
             model.name = name
 
-            if isinstance(parameter.default, Param):
+            if isinstance(starmallow_param, Param):
                 # Create new field_info with processed model
-                field_info = parameter.default.__class__(
-                    parameter.default.default,
-                    deprecated=parameter.default.deprecated,
-                    include_in_schema=parameter.default.include_in_schema,
+                field_info = starmallow_param.__class__(
+                    starmallow_param.default,
+                    deprecated=starmallow_param.deprecated,
+                    include_in_schema=starmallow_param.include_in_schema,
                     model=model,
                 )
             elif isinstance(model, mf.Field):
@@ -313,7 +358,7 @@ class EndpointMixin:
                 if name in path_param_names:
                     field_info = Path(
                         # If a default was provided, honor it.
-                        ... if parameter.default == inspect._empty else parameter.default,
+                        ... if default_value == inspect._empty else default_value,
                         deprecated=False,
                         include_in_schema=True,
                         model=model,
@@ -322,7 +367,7 @@ class EndpointMixin:
                     # Default it to QueryParameter
                     field_info = Query(
                         # If a default was provided, honor it.
-                        ... if parameter.default == inspect._empty else parameter.default,
+                        ... if default_value == inspect._empty else default_value,
                         deprecated=False,
                         include_in_schema=True,
                         model=model,
