@@ -32,6 +32,7 @@ import marshmallow as ma
 import marshmallow.fields as mf
 import marshmallow_dataclass.collection_field as collection_field
 from marshmallow.validate import Equal, OneOf
+from starlette.responses import Response
 from typing_inspect import is_final_type, is_generic_type, is_literal_type
 
 from starmallow.concurrency import contextmanager_in_threadpool
@@ -257,9 +258,9 @@ def eq_marshmallow_fields(left: mf.Field, right: mf.Field) -> bool:
         This compares them instead.
     '''
     left_dict = left.__dict__.copy()
-    left_dict.pop('_creation_index')
+    left_dict.pop('_creation_index', None)
     right_dict = right.__dict__.copy()
-    right_dict.pop('_creation_index')
+    right_dict.pop('_creation_index', None)
 
     return left_dict == right_dict
 
@@ -302,7 +303,7 @@ def deep_dict_update(main_dict: Dict[Any, Any], update_dict: Dict[Any, Any]) -> 
 
 
 def create_response_model(type_: Type[Any]) -> ma.Schema | mf.Field | None:
-    if type_ == inspect._empty:
+    if type_ == inspect._empty or issubclass(type_, Response):
         return None
 
     field = get_model_field(type_)

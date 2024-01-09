@@ -240,7 +240,7 @@ class OpenAPIConverter(ApiSpecOpenAPIConverter):
                 ret["explode"] = True
                 ret["style"] = "form"
             if prop.get("description", None):
-                ret["description"] = prop.pop("description")
+                ret["description"] = prop.pop("description", None)
             ret["schema"] = prop
 
             if 'deprecated' in field.metadata:
