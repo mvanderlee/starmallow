@@ -303,7 +303,7 @@ def deep_dict_update(main_dict: Dict[Any, Any], update_dict: Dict[Any, Any]) -> 
 
 
 def create_response_model(type_: Type[Any]) -> ma.Schema | mf.Field | None:
-    if type_ == inspect._empty or issubclass(type_, Response):
+    if type_ in [inspect._empty, None] or issubclass(type_, Response):
         return None
 
     field = get_model_field(type_)
