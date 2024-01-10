@@ -464,16 +464,12 @@ openapi_schema = {
                 "operationId": "get_path_ma_dataclass_id_path_ma_dataclass__item_id__get",
                 "parameters": [
                     {
-                        "in": "path",
-                        "name": "path_params",
-                        "required": True,
-                        "schema": {
-                            "title": "Path Params",
-                            "allOf": [
-                                {
-                                    "$ref": "#/components/schemas/PathParams",
-                                },
-                            ],
+                        'in': 'path',
+                        'name': 'item_id',
+                        'required': True,
+                        'schema': {
+                            'title': 'Item Id',
+                            'type': 'integer',
                         },
                     },
                 ],
@@ -501,16 +497,12 @@ openapi_schema = {
                 "operationId": "get_path_ma_schema_id_path_ma_schema__item_id__get",
                 "parameters": [
                     {
-                        "in": "path",
-                        "name": "path_params",
-                        "required": True,
-                        "schema": {
-                            "title": "Path Params",
-                            "allOf": [
-                                {
-                                    "$ref": "#/components/schemas/PathParams",
-                                },
-                            ],
+                        'in': 'path',
+                        'name': 'item_id',
+                        'required': True,
+                        'schema': {
+                            'title': 'Item Id',
+                            'type': 'integer',
                         },
                     },
                 ],
@@ -538,16 +530,12 @@ openapi_schema = {
                 "operationId": "get_path_model_ma_schema_id_path_model_schema__item_id__get",
                 "parameters": [
                     {
-                        "in": "path",
-                        "name": "path_params",
-                        "required": True,
-                        "schema": {
-                            "title": "Path Params",
-                            "allOf": [
-                                {
-                                    "$ref": "#/components/schemas/PathParams1",
-                                },
-                            ],
+                        'in': 'path',
+                        'name': 'item_id',
+                        'required': True,
+                        'schema': {
+                            'title': 'Item Id',
+                            'type': 'integer',
                         },
                     },
                 ],
@@ -575,16 +563,12 @@ openapi_schema = {
                 "operationId": "get_path_override_ma_schema_id_path_model_override__item_id__get",
                 "parameters": [
                     {
-                        "in": "path",
-                        "name": "path_params",
-                        "required": True,
-                        "schema": {
-                            "title": "Path Params",
-                            "allOf": [
-                                {
-                                    "$ref": "#/components/schemas/PathParams1",
-                                },
-                            ],
+                        'in': 'path',
+                        'name': 'item_id',
+                        'required': True,
+                        'schema': {
+                            'title': 'Item Id',
+                            'type': 'integer',
                         },
                     },
                 ],
@@ -630,11 +614,11 @@ openapi_schema = {
                         },
                     },
                     {
-                        "in": "path",
-                        "name": "sub_item_id",
-                        "required": True,
-                        "schema": {
-                            "title": "Sub Item Id",
+                        'in': 'path',
+                        'name': 'sub_item_id',
+                        'required': True,
+                        'schema': {
+                            'title': 'Sub Item Id',
                         },
                     },
                     {
@@ -683,29 +667,39 @@ openapi_schema = {
                 "parameters": [
                     {
                         'in': 'query',
-                        'name': 'query_params',
+                        'name': 'name',
                         'required': True,
                         'schema': {
-                            'allOf': [{'$ref': '#/components/schemas/MultiQueryParams'}],
-                            'title': 'Query Params',
+                            'title': 'Name',
+                            'type': 'string',
                         },
                     },
                     {
                         'in': 'path',
-                        'name': 'path_params',
+                        'name': 'item_id',
                         'required': True,
                         'schema': {
-                            'allOf': [{'$ref': '#/components/schemas/MultiPathParams'}],
-                            'title': 'Path Params',
+                            'title': 'Item Id',
+                            'type': 'integer',
+                        },
+                    },
+                    {
+                        'in': 'path',
+                        'name': 'sub_item_id',
+                        'required': True,
+                        'schema': {
+                            'title': 'Sub Item Id',
+                            'type': 'integer',
                         },
                     },
                     {
                         'in': 'header',
-                        'name': 'header_params',
-                        'required': True,
+                        'name': 'color',
+                        'required': False,
                         'schema': {
-                            'allOf': [{'$ref': '#/components/schemas/MultiHeaderParams'}],
-                            'title': 'Header Params',
+                            'default': 'blue',
+                            'title': 'Color',
+                            'type': 'string',
                         },
                     },
                 ],
@@ -744,11 +738,11 @@ openapi_schema = {
                 "parameters": [
                     {
                         'in': 'query',
-                        'name': 'query_params',
+                        'name': 'name',
                         'required': True,
                         'schema': {
-                            'allOf': [{'$ref': '#/components/schemas/MultiQueryParams'}],
-                            'title': 'Query Params',
+                            'title': 'Name',
+                            'type': 'string',
                         },
                     },
                     {
@@ -771,11 +765,11 @@ openapi_schema = {
                     },
                     {
                         'in': 'path',
-                        'name': 'path_params',
+                        'name': 'sub_item_id',
                         'required': True,
                         'schema': {
-                            'allOf': [{'$ref': '#/components/schemas/MultiPathParams'}],
-                            'title': 'Path Params',
+                            'title': 'Sub Item Id',
+                            'type': 'integer',
                         },
                     },
                     {
@@ -835,60 +829,6 @@ openapi_schema = {
                 ],
                 "title": "Body_post_multi_flat_multi_flat__item_id___sub_item_id__post",
             },
-            "PathParams": {
-                "type": "object",
-                "properties": {
-                    "item_id": {
-                        "type": "integer",
-                        "title": "Item Id",
-                    },
-                },
-                "required": [
-                    "item_id",
-                ],
-                "title": "Path Params",
-            },
-            "PathParams1": {
-                "type": "object",
-                "properties": {
-                    "item_id": {
-                        "type": "integer",
-                        "title": "Item Id",
-                    },
-                },
-                "title": "Path Params",
-            },
-            "MultiPathParams": {
-                "type": "object",
-                "properties": {
-                    "item_id": {
-                        "type": "integer",
-                        "title": "Item Id",
-                    },
-                    "sub_item_id": {
-                        "type": "integer",
-                        "title": "Sub Item Id",
-                    },
-                },
-                "required": [
-                    "item_id",
-                    "sub_item_id",
-                ],
-                "title": "Path Params",
-            },
-            "MultiQueryParams": {
-                "type": "object",
-                "properties": {
-                    "name": {
-                        "type": "string",
-                        "title": "Name",
-                    },
-                },
-                "required": [
-                    "name",
-                ],
-                "title": "Query Params",
-            },
             "MultiBodyParams": {
                 "type": "object",
                 "properties": {
@@ -901,17 +841,6 @@ openapi_schema = {
                     "weight",
                 ],
                 "title": "Body Params",
-            },
-            "MultiHeaderParams": {
-                "type": "object",
-                "properties": {
-                    "color": {
-                        "type": "string",
-                        "default": "blue",
-                        "title": "Color",
-                    },
-                },
-                "title": "Header Params",
             },
         },
     },

@@ -458,13 +458,14 @@ openapi_schema = {
                 "operationId": "get_final_id_path_final__item_id__get",
                 "parameters": [
                     {
-                        "required": True,
-                        "schema": {
-                            'allOf': [{'$ref': '#/components/schemas/FinalItem'}],
-                            "title": "Item Id",
+                        'in': 'path',
+                        'name': 'item_id',
+                        'required': True,
+                        'schema': {
+                            'default': 10,
+                            'title': 'Item Id',
+                            'type': 'integer',
                         },
-                        "name": "item_id",
-                        "in": "path",
                     },
                 ],
             },
@@ -2157,17 +2158,6 @@ openapi_schema = {
                 },
                 'required': ['detail', 'status_code'],
                 'title': 'HTTPValidationError',
-                'type': 'object',
-            },
-            'FinalItem': {
-                'properties': {
-                    'item_id': {
-                        'default': 10,
-                        'title': 'Item Id',
-                        'type': 'integer',
-                    },
-                },
-                'title': 'Item Id',
                 'type': 'object',
             },
         },

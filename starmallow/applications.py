@@ -1,5 +1,6 @@
 import os
 from enum import Enum
+from logging import getLogger
 from string import Template
 from typing import (
     Any,
@@ -43,6 +44,7 @@ from starmallow.schema_generator import SchemaGenerator
 from starmallow.types import DecoratedCallable
 from starmallow.utils import generate_unique_id
 
+logger = getLogger(__name__)
 
 class StarMallow(Starlette):
 
@@ -171,6 +173,7 @@ class StarMallow(Starlette):
                 try:
                     return JSONResponse(self.openapi())
                 except Exception as e:
+                    logger.exception('Failed to generate OpenAPI schema')
                     raise SchemaGenerationError() from e
 
             self.add_route(self.openapi_url, openapi, include_in_schema=False)

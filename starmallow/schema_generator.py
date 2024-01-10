@@ -5,7 +5,7 @@ import re
 import warnings
 from collections import defaultdict
 from logging import getLogger
-from typing import Any, Dict, List, Optional, Sequence, Set, Tuple, Type
+from typing import Any, Dict, Generator, List, Optional, Sequence, Set, Tuple, Type
 
 import marshmallow as ma
 import marshmallow.fields as mf
@@ -19,7 +19,7 @@ from starlette.schemas import BaseSchemaGenerator
 from starmallow.datastructures import DefaultPlaceholder
 from starmallow.endpoint import EndpointModel, SchemaModel
 from starmallow.ext.marshmallow import MarshmallowPlugin
-from starmallow.params import Body
+from starmallow.params import Body, Cookie, Header, Path, Query
 from starmallow.responses import HTTPValidationError
 from starmallow.routing import APIRoute
 from starmallow.security.base import SecurityBaseResolver
@@ -170,25 +170,48 @@ class SchemaGenerator(BaseSchemaGenerator):
 
         return endpoints_info
 
+    def _to_parameters(self, *params: Dict[str, Query | Path | Header | Cookie]) -> Generator[Dict[str, Any], None, None]:
+        for name, field in itertools.chain(*(p.items() for p in params)):
+            if not field.include_in_schema:
+                continue
+
+            if isinstance(field.model, SchemaModel):
+                for field_name, ma_field in field.model.schema.load_fields.items():
+                    yield self.converter._field2parameter(
+                        ma_field,
+                        name=field_name,
+                        location=field.in_.name,
+                    )
+
+            else:
+                yield self.converter._field2parameter(
+                    field.model,
+                    name=name,
+                    location=field.in_.name,
+                )
+
     def _add_endpoint_parameters(
         self,
         endpoint: EndpointModel,
         schema: Dict,
     ):
-        schema["parameters"] = [
-            self.converter._field2parameter(
-                field.model.to_nested() if isinstance(field.model, SchemaModel) else field.model,
-                name=name,
-                location=field.in_.name,
-            )
-            for name, field in itertools.chain(
-                endpoint.query_params.items(),
-                endpoint.path_params.items(),
-                endpoint.header_params.items(),
-                endpoint.cookie_params.items(),
-            )
-            if field.include_in_schema
-        ]
+        unique_params = {}
+        for param in self._to_parameters(
+            endpoint.query_params,
+            endpoint.path_params,
+            endpoint.header_params,
+            endpoint.cookie_params,
+        ):
+            if (param['name'] in unique_params):
+                if unique_params[param['name']] == param:
+                    # Duplicate parameter, skip. Could be defined as a field and in a schema.
+                    continue
+                else:
+                    raise ValueError(f"Duplicate parameter with name {param['name']} and location {param['in']}")
+
+            unique_params[param['name']] = param
+
+        schema["parameters"] = list(unique_params.values())
 
     def _add_endpoint_body(
         self,
