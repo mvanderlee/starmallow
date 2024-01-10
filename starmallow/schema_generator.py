@@ -4,6 +4,7 @@ import itertools
 import re
 import warnings
 from collections import defaultdict
+from logging import getLogger
 from typing import Any, Dict, List, Optional, Sequence, Set, Tuple, Type
 
 import marshmallow as ma
@@ -29,6 +30,7 @@ from starmallow.utils import (
     status_code_ranges,
 )
 
+logger = getLogger(__name__)
 
 class SchemaRegistry(dict):
     '''
@@ -410,10 +412,8 @@ class SchemaGenerator(BaseSchemaGenerator):
 
         # Add default error response
         if (any_params or endpoint.body_params or endpoint.form_params) and not any(
-            [
-                status in schema['responses']
+            status in schema['responses']
                 for status in ["422", "4XX", "default"]
-            ],
         ):
             self._add_default_error_response(schema)
 
@@ -449,9 +449,13 @@ class SchemaGenerator(BaseSchemaGenerator):
         endpoints_info = self.get_endpoints(routes)
 
         for path, endpoints in endpoints_info.items():
-            self.spec.path(
-                path=path,
-                operations=self.get_operations(endpoints),
-            )
+            try:
+                self.spec.path(
+                    path=path,
+                    operations=self.get_operations(endpoints),
+                )
+            except Exception:
+                logger.error(f'Failed to generate schema for path {path}')
+                raise
 
         return self.spec.to_dict()

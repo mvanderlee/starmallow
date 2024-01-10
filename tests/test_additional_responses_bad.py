@@ -1,4 +1,3 @@
-import pytest
 from starlette.testclient import TestClient
 
 from starmallow import StarMallow
@@ -37,5 +36,8 @@ client = TestClient(app)
 
 
 def test_openapi_schema():
-    with pytest.raises(ValueError):
-        client.get("/openapi.json")
+    response = client.get("/openapi.json")
+    assert response.status_code == 500
+    assert response.json() == {
+        "detail": "Failed to generate schema",
+    }

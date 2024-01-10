@@ -5,6 +5,7 @@ from starlette.testclient import TestClient
 from starmallow import StarMallow
 from starmallow.decorators import route
 from starmallow.endpoints import APIHTTPEndpoint
+from starmallow.routing import APIRouter
 
 from .utils import assert_json
 
@@ -43,7 +44,10 @@ class StringId(APIHTTPEndpoint):
         return item_id
 
 
-@app.api_route("/overrides")
+router = APIRouter(prefix='/overrides', tags=['Overrides'])
+
+
+@router.api_route("")
 class Overrides(APIHTTPEndpoint):
     @route(name='OverriddenGet')
     def get(self):
@@ -68,6 +72,9 @@ class Overrides(APIHTTPEndpoint):
     @route(include_in_schema=False)
     def options(self):
         return {"message": "Options World"}
+
+
+app.include_router(router)
 
 
 openapi_schema = {
@@ -174,6 +181,9 @@ openapi_schema = {
                         "content": {"application/json": {"schema": {}}},
                     },
                 },
+                "tags": [
+                    "Overrides",
+                ],
                 "summary": "Overridden Get",
                 "operationId": "OverriddenGet_overrides_get",
             },
@@ -185,6 +195,9 @@ openapi_schema = {
                         "content": {"application/json": {"schema": {}}},
                     },
                 },
+                "tags": [
+                    "Overrides",
+                ],
                 "summary": "Overrides Post",
                 "operationId": "Overrides_post_overrides_post",
             },
@@ -195,6 +208,9 @@ openapi_schema = {
                         "content": {"application/json": {"schema": {}}},
                     },
                 },
+                "tags": [
+                    "Overrides",
+                ],
                 "summary": "Overrides Put",
                 "operationId": "CustomOperation",
             },
@@ -207,7 +223,7 @@ openapi_schema = {
                 },
                 "summary": "Overrides Patch",
                 "operationId": "Overrides_patch_overrides_patch",
-                "tags": ["alpha", "beta"],
+                "tags": ["Overrides", "alpha", "beta"],
             },
             "delete": {
                 "responses": {
@@ -216,6 +232,9 @@ openapi_schema = {
                         "content": {"application/json": {"schema": {}}},
                     },
                 },
+                "tags": [
+                    "Overrides",
+                ],
                 "summary": "Overrides Delete",
                 "operationId": "Overrides_delete_overrides_delete",
             },

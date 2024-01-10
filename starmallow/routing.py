@@ -584,7 +584,7 @@ class APIRouter(routing.Router):
                     method_tags.extend(endpoint_options.tags)
 
                 route = APIRoute(
-                    path,
+                    self.prefix + path,
                     endpoint_function,
                     methods=[method],
                     name=endpoint_options.name or name,

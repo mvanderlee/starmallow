@@ -35,7 +35,7 @@ from starmallow.exception_handlers import (
     http_exception_handler,
     request_validation_exception_handler,
 )
-from starmallow.exceptions import RequestValidationError
+from starmallow.exceptions import RequestValidationError, SchemaGenerationError
 from starmallow.middleware import AsyncExitStackMiddleware
 from starmallow.responses import JSONResponse
 from starmallow.routing import APIRoute, APIRouter
@@ -168,7 +168,10 @@ class StarMallow(Starlette):
     def init_openapi(self):
         if self.openapi_url:
             async def openapi(req: Request) -> JSONResponse:
-                return JSONResponse(self.openapi())
+                try:
+                    return JSONResponse(self.openapi())
+                except Exception as e:
+                    raise SchemaGenerationError() from e
 
             self.add_route(self.openapi_url, openapi, include_in_schema=False)
 
