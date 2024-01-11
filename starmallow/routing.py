@@ -190,6 +190,10 @@ async def get_request_args(
     if json_errors and json_errors.errors:
         errors['json'] = json_errors.errors
 
+    # Exit before resolving ResolvedParams as that could cause function call exceptions
+    if errors:
+        return None, errors
+
     if response is None:
         response = Response()
         del response.headers["content-length"]
@@ -206,8 +210,8 @@ async def get_request_args(
                 background_tasks = BackgroundTasks()
             values[param_name] = background_tasks
 
-    # Handle resolved params - reverse resolved params so we process the most nested ones first
-    for param_name, resolved_param in reversed(endpoint_model.resolved_params.items()):
+    # Handle resolved params
+    for param_name, resolved_param in endpoint_model.resolved_params.items():
         # Get all known arguments for the resolver.
         resolver_kwargs = {}
         for name, parameter in inspect.signature(resolved_param.resolver).parameters.items():
