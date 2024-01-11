@@ -154,7 +154,7 @@ class StarMallow(Starlette):
 
         app = self.router
         for cls, args, kwargs in reversed(middleware):
-            app = cls(app, *args, **kwargs)
+            app = cls(app=app, *args, **kwargs)  # noqa: B026
         return app
 
     def openapi(self) -> Dict[str, Any]:
