@@ -11,13 +11,13 @@ from starmallow.security.base import SecurityBase, SecurityBaseResolver, Securit
 from starmallow.security.utils import get_authorization_scheme_param
 
 
-@ma_dataclass
+@ma_dataclass(frozen=True)
 class HTTPBasicCredentials:
     username: str
     password: str
 
 
-@ma_dataclass
+@ma_dataclass(frozen=True)
 class HTTPAuthorizationCredentials:
     '''
         Will hold the parsed HTTP Authorization Creditials like bearer tokens.
@@ -30,14 +30,14 @@ class HTTPAuthorizationCredentials:
     credentials: str
 
 
-@ma_dataclass
+@ma_dataclass(frozen=True)
 class HTTPBaseModel(SecurityBase):
     type: ClassVar[SecurityTypes] = SecurityTypes.http
     description: Optional[str] = None
     scheme: str = None
 
 
-@ma_dataclass
+@ma_dataclass(frozen=True)
 class HTTPBearerModel(HTTPBaseModel):
     scheme: str = "bearer"
     bearerFormat: Optional[str] = None
@@ -72,7 +72,6 @@ class HTTPBase(SecurityBaseResolver):
         return HTTPAuthorizationCredentials(scheme=scheme, credentials=credentials)
 
 
-@ma_dataclass
 class HTTPBasic(HTTPBase):
 
     def __init__(
@@ -125,7 +124,6 @@ class HTTPBasic(HTTPBase):
         return HTTPBasicCredentials(username=username, password=password)
 
 
-@ma_dataclass
 class HTTPBearer(HTTPBase):
 
     def __init__(
@@ -163,7 +161,6 @@ class HTTPBearer(HTTPBase):
         return HTTPAuthorizationCredentials(scheme=scheme, credentials=credentials)
 
 
-@ma_dataclass
 class HTTPDigest(HTTPBase):
 
     def __init__(

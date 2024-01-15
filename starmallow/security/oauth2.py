@@ -13,7 +13,7 @@ from starmallow.security.utils import get_authorization_scheme_param
 
 
 # region - Models
-@ma_dataclass
+@ma_dataclass(frozen=True)
 class OAuthFlow:
     refreshUrl: Optional[str] = optional_field()
     scopes: Dict[str, str] = optional_field(default_factory=dict)
@@ -31,28 +31,28 @@ class OAuthFlow:
         }
 
 
-@ma_dataclass
+@ma_dataclass(frozen=True)
 class OAuthFlowImplicit(OAuthFlow):
     authorizationUrl: str = required_field()
 
 
-@ma_dataclass
+@ma_dataclass(frozen=True)
 class OAuthFlowPassword(OAuthFlow):
     tokenUrl: str = required_field()
 
 
-@ma_dataclass
+@ma_dataclass(frozen=True)
 class OAuthFlowClientCredentials(OAuthFlow):
     tokenUrl: str = required_field()
 
 
-@ma_dataclass
+@ma_dataclass(frozen=True)
 class OAuthFlowAuthorizationCode(OAuthFlow):
     authorizationUrl: str = required_field()
     tokenUrl: str = required_field()
 
 
-@ma_dataclass
+@ma_dataclass(frozen=True)
 class OAuthFlowsModel:
     implicit: Optional[OAuthFlowImplicit] = optional_field()
     password: Optional[OAuthFlowPassword] = optional_field()
@@ -72,7 +72,7 @@ class OAuthFlowsModel:
         }
 
 
-@ma_dataclass
+@ma_dataclass(frozen=True)
 class OAuth2Model(SecurityBase):
     type: SecurityTypes = SecurityTypes.oauth2
     flows: OAuthFlowsModel = required_field()

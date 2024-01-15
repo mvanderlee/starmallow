@@ -14,7 +14,7 @@ class SecurityTypes(Enum):
     openIdConnect = "openIdConnect"
 
 
-@ma_dataclass
+@ma_dataclass(frozen=True)
 class SecurityBase:
     type: ClassVar[SecurityTypes]
     description: Optional[str] = None

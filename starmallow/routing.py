@@ -2,20 +2,13 @@ import asyncio
 import functools
 import inspect
 import logging
-from contextlib import AsyncExitStack
 from enum import Enum, IntEnum
-from typing import Any, Callable, Coroutine, Dict, List, Mapping, Optional, Set, Tuple, Type, Union
+from typing import Any, Callable, Coroutine, Dict, List, Optional, Set, Tuple, Type, Union
 
 import marshmallow as ma
-import marshmallow.fields as mf
-from marshmallow.error_store import ErrorStore
-from marshmallow.utils import missing as missing_
 from starlette import routing
-from starlette.background import BackgroundTasks
 from starlette.concurrency import run_in_threadpool
-from starlette.datastructures import FormData, Headers, QueryParams
-from starlette.exceptions import HTTPException
-from starlette.requests import HTTPConnection, Request
+from starlette.requests import Request
 from starlette.responses import Response
 from starlette.routing import BaseRoute, Match, compile_path, request_response
 from starlette.status import WS_1008_POLICY_VIOLATION
@@ -28,223 +21,22 @@ from starmallow.decorators import EndpointOptions
 from starmallow.endpoint import EndpointMixin, EndpointModel
 from starmallow.endpoints import APIHTTPEndpoint
 from starmallow.exceptions import RequestValidationError, WebSocketRequestValidationError
-from starmallow.params import Param, ParamType
+from starmallow.request_resolver import resolve_params
 from starmallow.responses import JSONResponse
 from starmallow.types import DecoratedCallable
 from starmallow.utils import (
     create_response_model,
     generate_unique_id,
     get_name,
+    get_typed_signature,
     get_value_or_default,
-    is_async_gen_callable,
     is_body_allowed_for_status_code,
-    is_gen_callable,
     is_marshmallow_field,
     is_marshmallow_schema,
-    lenient_issubclass,
-    solve_generator,
 )
 from starmallow.websockets import APIWebSocket
 
 logger = logging.getLogger(__name__)
-
-
-async def get_body(
-    request: Request,
-    endpoint_model: "EndpointModel",
-) -> Union[FormData, bytes, Dict[str, Any]]:
-    is_body_form = bool(endpoint_model.flat_params[ParamType.form])
-    should_process_body = is_body_form or endpoint_model.flat_params[ParamType.body]
-    try:
-        body: Any = None
-        if should_process_body:
-            if is_body_form:
-                body = await request.form()
-                stack = request.scope.get("starmallow_astack")
-                assert isinstance(stack, AsyncExitStack)
-                stack.push_async_callback(body.close)
-            else:
-                body_bytes = await request.body()
-                if body_bytes:
-                    json_body: Any = missing_
-                    content_type_value: str = request.headers.get("content-type")
-                    if not content_type_value:
-                        json_body = await request.json()
-                    else:
-                        main_type, sub_type = content_type_value.split('/')
-                        if main_type == "application":
-                            if sub_type == "json" or sub_type.endswith("+json"):
-                                json_body = await request.json()
-                    if json_body != missing_:
-                        body = json_body
-                    else:
-                        body = body_bytes
-
-        return body
-    except Exception as e:
-        raise HTTPException(
-            status_code=400, detail="There was an error parsing the body",
-        ) from e
-
-
-def request_params_to_args(
-    received_params: Union[Mapping[str, Any], QueryParams, Headers],
-    endpoint_params: Dict[str, Param],
-    ignore_namespace: bool = True,
-) -> Tuple[Dict[str, Any], ErrorStore]:
-    values = {}
-    error_store = ErrorStore()
-    for field_name, param in endpoint_params.items():
-        if isinstance(param.model, mf.Field):
-            try:
-                # Load model from specific param
-                values[field_name] = param.model.deserialize(
-                    received_params.get(field_name, ma.missing),
-                    field_name,
-                    received_params,
-                )
-            except ma.ValidationError as error:
-                error_store.store_error(error.messages, field_name)
-        elif isinstance(param.model, ma.Schema):
-            try:
-                if ignore_namespace:
-                    # Load model from entire params
-                    values[field_name] = param.model.load(received_params, unknown=ma.EXCLUDE)
-                else:
-                    values[field_name] = param.model.load(
-                        received_params.get(field_name, ma.missing),
-                        unknown=ma.EXCLUDE,
-                    )
-            except ma.ValidationError as error:
-                error_store.store_error(error.messages)
-        else:
-            raise Exception(f'Invalid model type {type(param.model)}, expected marshmallow Schema or Field')
-
-    return values, error_store
-
-
-async def get_request_args(
-    request: Request | WebSocket,
-    endpoint_model: EndpointModel,
-    background_tasks: Optional[BackgroundTasks] = None,
-    response: Optional[Response] = None,
-) -> Tuple[Dict[str, Any], Dict[str, Union[Any, List, Dict]]]:
-    path_values, path_errors = request_params_to_args(
-        request.path_params,
-        endpoint_model.path_params,
-    )
-    query_values, query_errors = request_params_to_args(
-        request.query_params,
-        endpoint_model.query_params,
-    )
-    header_values, header_errors = request_params_to_args(
-        request.headers,
-        endpoint_model.header_params,
-    )
-    cookie_values, cookie_errors = request_params_to_args(
-        request.cookies,
-        endpoint_model.cookie_params,
-    )
-
-    body = await get_body(request, endpoint_model)
-    form_values, form_errors = {}, None
-    json_values, json_errors = {}, None
-    form_params = endpoint_model.form_params
-    if form_params:
-        form_values, form_errors = request_params_to_args(
-            body if body is not None and isinstance(body, FormData) else {},
-            form_params,
-            # If there is only one parameter defined, then don't namespace by the parameter name
-            # Otherwise we honor the namespace: https://fastapi.tiangolo.com/tutorial/body-multiple-params/
-            ignore_namespace=len(form_params) == 1,
-        )
-    body_params = endpoint_model.body_params
-    if body_params:
-        json_values, json_errors = request_params_to_args(
-            body if body is not None and isinstance(body, Mapping) else {},
-            body_params,
-            # If there is only one parameter defined, then don't namespace by the parameter name
-            # Otherwise we honor the namespace: https://fastapi.tiangolo.com/tutorial/body-multiple-params/
-            ignore_namespace=len(body_params) == 1,
-        )
-
-    values = {
-        **path_values,
-        **query_values,
-        **header_values,
-        **cookie_values,
-        **form_values,
-        **json_values,
-    }
-    errors = {}
-    if path_errors.errors:
-        errors['path'] = path_errors.errors
-    if query_errors.errors:
-        errors['query'] = query_errors.errors
-    if header_errors.errors:
-        errors['header'] = header_errors.errors
-    if cookie_errors.errors:
-        errors['cookie'] = cookie_errors.errors
-    if form_errors and form_errors.errors:
-        errors['form'] = form_errors.errors
-    if json_errors and json_errors.errors:
-        errors['json'] = json_errors.errors
-
-    # Exit before resolving ResolvedParams as that could cause function call exceptions
-    if errors:
-        return None, errors
-
-    if response is None:
-        response = Response()
-        del response.headers["content-length"]
-        response.status_code = None  # type: ignore
-
-    # Handle non-field params
-    for param_name, param_type in endpoint_model.non_field_params.items():
-        if lenient_issubclass(param_type, (HTTPConnection, Request, WebSocket)):
-            values[param_name] = request
-        elif lenient_issubclass(param_type, Response):
-            values[param_name] = response
-        elif lenient_issubclass(param_type, BackgroundTasks):
-            if background_tasks is None:
-                background_tasks = BackgroundTasks()
-            values[param_name] = background_tasks
-
-    # Handle resolved params
-    for param_name, resolved_param in endpoint_model.resolved_params.items():
-        # Get all known arguments for the resolver.
-        resolver_kwargs = {}
-        for name, parameter in inspect.signature(resolved_param.resolver).parameters.items():
-            if lenient_issubclass(parameter.annotation, (HTTPConnection, Request, WebSocket)):
-                resolver_kwargs[name] = request
-            elif lenient_issubclass(parameter.annotation, Response):
-                resolver_kwargs[name] = response
-            elif lenient_issubclass(parameter.annotation, BackgroundTasks):
-                if background_tasks is None:
-                    background_tasks = BackgroundTasks()
-                resolver_kwargs[name] = background_tasks
-            elif name in values:
-                resolver_kwargs[name] = values[name]
-
-        # Resolver can be a class with __call__ function
-        resolver = resolved_param.resolver
-        if not inspect.isfunction(resolver) and callable(resolver):
-            resolver = resolver.__call__
-        elif not inspect.isfunction(resolver):
-            raise TypeError(f'{param_name} = {resolved_param} resolver is not a function or callable')
-
-        if is_gen_callable(resolver) or is_async_gen_callable(resolver):
-            stack = request.scope.get("starmallow_astack")
-            assert isinstance(stack, AsyncExitStack)
-            values[param_name] = await solve_generator(
-                call=resolver, stack=stack, gen_kwargs=resolver_kwargs,
-            )
-        elif asyncio.iscoroutinefunction(resolver):
-            values[param_name] = await resolver(**resolver_kwargs)
-        else:
-            values[param_name] = resolver(**resolver_kwargs)
-
-    return values, errors
 
 
 async def run_endpoint_function(
@@ -255,7 +47,7 @@ async def run_endpoint_function(
 
     kwargs = {
         name: values[name]
-        for name in inspect.signature(endpoint_model.call).parameters
+        for name in get_typed_signature(endpoint_model.call).parameters
         if name in values
     }
 
@@ -283,7 +75,7 @@ def get_request_handler(
     assert endpoint_model.call is not None, "dependant.call must be a function"
 
     async def app(request: Request) -> Response:
-        values, errors = await get_request_args(request, endpoint_model)
+        values, errors = await resolve_params(request, endpoint_model.params)
 
         if errors:
             raise RequestValidationError(errors)
@@ -318,7 +110,7 @@ def get_websocker_hander(
     assert endpoint_model.call is not None, "dependant.call must be a function"
 
     async def app(websocket: WebSocket) -> None:
-        values, errors = await get_request_args(websocket, endpoint_model)
+        values, errors = await resolve_params(websocket, endpoint_model.params)
 
         if errors:
             await websocket.close(code=WS_1008_POLICY_VIOLATION)

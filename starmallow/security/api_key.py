@@ -16,7 +16,7 @@ class APIKeyIn(Enum):
     cookie = "cookie"
 
 
-@ma_dataclass
+@ma_dataclass(frozen=True)
 class APIKeyModel(SecurityBase):
     type: ClassVar[SecurityTypes] = SecurityTypes.apiKey
     in_: APIKeyIn = required_field(data_key='in')

@@ -9,11 +9,13 @@ from contextlib import AsyncExitStack, asynccontextmanager, contextmanager
 from dataclasses import is_dataclass
 from decimal import Decimal
 from enum import Enum
+from types import NoneType
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
     Dict,
+    ForwardRef,
     FrozenSet,
     List,
     Mapping,
@@ -22,6 +24,7 @@ from typing import (
     Tuple,
     Type,
     Union,
+    _eval_type,
     _GenericAlias,
     get_args,
     get_origin,
@@ -303,7 +306,7 @@ def deep_dict_update(main_dict: Dict[Any, Any], update_dict: Dict[Any, Any]) -> 
 
 
 def create_response_model(type_: Type[Any]) -> ma.Schema | mf.Field | None:
-    if type_ in [inspect._empty, None] or issubclass(type_, Response):
+    if type_ in [inspect._empty, None] or (inspect.isclass(type_) and issubclass(type_, Response)):
         return None
 
     field = get_model_field(type_)
@@ -337,3 +340,55 @@ def get_name(endpoint: Callable) -> str:
     if inspect.isroutine(endpoint) or inspect.isclass(endpoint):
         return endpoint.__qualname__
     return endpoint.__class__.__name__
+
+
+# Functions that help resolve forward references like
+# def foo(a: 'str') -> 'UnresolvedClass': pass
+# inspect.signature returns the literal string instead of the actual type.
+def get_typed_signature(call: Callable[..., Any]) -> inspect.Signature:
+    signature = inspect.signature(call)
+    globalns = getattr(call, "__globals__", {})
+    typed_params = [
+        inspect.Parameter(
+            name=param.name,
+            kind=param.kind,
+            default=param.default,
+            annotation=get_typed_annotation(param.annotation, globalns),
+        )
+        for param in signature.parameters.values()
+    ]
+    typed_signature = inspect.Signature(typed_params)
+    return typed_signature
+
+
+def get_typed_annotation(annotation: Any, globalns: Dict[str, Any]) -> Any:
+    if isinstance(annotation, str):
+        annotation = ForwardRef(annotation)
+        annotation = evaluate_forwardref(annotation, globalns, globalns)
+    return annotation
+
+
+def get_typed_return_annotation(call: Callable[..., Any]) -> Any:
+    signature = inspect.signature(call)
+    annotation = signature.return_annotation
+
+    if annotation is inspect.Signature.empty:
+        return None
+
+    globalns = getattr(call, "__globals__", {})
+    return get_typed_annotation(annotation, globalns)
+
+
+
+def evaluate_forwardref(value: Any, globalns: dict[str, Any] | None, localns: dict[str, Any] | None) -> Any:
+    """Behaves like typing._eval_type, except it won't raise an error if a forward reference can't be resolved."""
+    if value is None:
+        value = NoneType
+    elif isinstance(value, str):
+        value = ForwardRef(value, is_argument=False, is_class=True)
+
+    try:
+        return _eval_type(value, globalns, localns)  # type: ignore
+    except NameError:
+        # the point of this function is to be tolerant to this case
+        return value

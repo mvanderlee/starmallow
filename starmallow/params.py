@@ -215,10 +215,12 @@ class NoParam:
 
 
 class ResolvedParam:
-    def __init__(self, resolver: Callable[[Any], Any] = None):
+    def __init__(self, resolver: Callable[[Any], Any] = None, use_cache: bool = True):
         self.resolver = resolver
         # Set when we resolve the routes in the EnpointMixin
         self.resolver_params: Dict[ParamType, Dict[str, Param]] = {}
+        self.use_cache = use_cache
+        self.cache_key = (self.resolver, None)
 
 
 class Security(ResolvedParam):
@@ -227,9 +229,12 @@ class Security(ResolvedParam):
         self,
         resolver: SecurityBaseResolver = None,
         scopes: Optional[Sequence[str]] = None,
+        use_cache: bool = True,
     ):
         # Not calling super so that the resolver typehinting actually works in VSCode
         self.resolver = resolver
         # Set when we resolve the routes in the EnpointMixin
         self.resolver_params: Dict[ParamType, Dict[str, Param]] = {}
         self.scopes = scopes or []
+        self.use_cache = use_cache
+        self.cache_key = (self.resolver, tuple(sorted(set(self.scopes or []))))

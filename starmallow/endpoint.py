@@ -45,6 +45,8 @@ from starmallow.utils import (
     get_args,
     get_model_field,
     get_path_param_names,
+    get_typed_return_annotation,
+    get_typed_signature,
     is_marshmallow_dataclass,
     is_marshmallow_field,
     is_marshmallow_schema,
@@ -255,7 +257,7 @@ class EndpointMixin:
             try:
                 return get_model_field(model, **kwargs)
             except Exception as e:
-                raise Exception(f'Unknown model type for parameter {parameter_name}, model is {model}') from e
+                raise Exception(f'Unknown model type for parameter {parameter_name}, model is {model}, {type(model)}') from e
 
     def get_resolved_param(self, resolved_param: ResolvedParam, annotation: Any, path: str) -> ResolvedParam:
         # Supports `field = ResolvedParam(resolver_callable)
@@ -274,7 +276,7 @@ class EndpointMixin:
     ) -> Dict[ParamType, Dict[str, Param]]:
         path_param_names = get_path_param_names(path)
         params = {param_type: {} for param_type in ParamType}
-        for name, parameter in inspect.signature(func).parameters.items():
+        for name, parameter in get_typed_signature(func).parameters.items():
             default_value = parameter.default
 
             # The type annotation. i.e.: 'str' in these `value: str`. Or `value: [str, Query(gt=3)]`
@@ -316,15 +318,18 @@ class EndpointMixin:
                 or isinstance(starmallow_param, NoParam)
             ):
                 continue
+            elif isinstance(starmallow_param, Security):
+                security_param: Security = self.get_resolved_param(starmallow_param, type_annotation, path=path)
+                params[ParamType.security][name] = security_param
+                continue
             elif isinstance(starmallow_param, ResolvedParam):
                 resolved_param: ResolvedParam = self.get_resolved_param(starmallow_param, type_annotation, path=path)
-                params[ParamType.resolved][name] = resolved_param
 
-                if isinstance(starmallow_param, Security):
+                # Allow `ResolvedParam(HTTPBearer())` - treat as securty param
+                if isinstance(resolved_param.resolver, SecurityBaseResolver):
                     params[ParamType.security][name] = resolved_param
-                # Allow `ResolvedParam(HTTPBearer())`
-                elif isinstance(resolved_param.resolver, SecurityBaseResolver):
-                    params[ParamType.security][name] = resolved_param
+                else:
+                    params[ParamType.resolved][name] = resolved_param
 
                 continue
             elif lenient_issubclass(
@@ -394,7 +399,7 @@ class EndpointMixin:
     ) -> EndpointModel:
         params = self._get_params(endpoint, path)
 
-        response_model = create_response_model(response_model or inspect.signature(endpoint).return_annotation)
+        response_model = create_response_model(response_model or get_typed_return_annotation(endpoint))
 
         return EndpointModel(
             path=path,

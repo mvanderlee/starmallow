@@ -9,7 +9,7 @@ from starmallow.dataclasses import required_field
 from starmallow.security.base import SecurityBase, SecurityBaseResolver, SecurityTypes
 
 
-@ma_dataclass
+@ma_dataclass(frozen=True)
 class OpenIdConnectModel(SecurityBase):
     type: SecurityTypes = SecurityTypes.openIdConnect
     openIdConnectUrl: str = required_field()
