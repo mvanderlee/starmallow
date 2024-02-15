@@ -135,10 +135,13 @@ class StarMallow(Starlette):
         ] = {}
 
         for key, value in self.exception_handlers.items():
+            # Ensure we handle any middleware exceptions using the Exception handler
+            # But also ensure we don't fall through all middlewares if the route itself threw an Exception
+            # As this would result in an incredibly long stacktrace
             if key in (500, Exception):
                 error_handler = value
-            else:
-                exception_handlers[key] = value
+
+            exception_handlers[key] = value
 
         middleware = (
             [Middleware(ServerErrorMiddleware, handler=error_handler, debug=debug)]
