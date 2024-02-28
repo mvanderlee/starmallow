@@ -49,7 +49,7 @@ async def get_body(
                     if not content_type_value:
                         json_body = await request.json()
                     else:
-                        main_type, sub_type = content_type_value.split('/')
+                        main_type, sub_type = content_type_value.split(';')[0].split('/')
                         if main_type == "application":
                             if sub_type == "json" or sub_type.endswith("+json"):
                                 json_body = await request.json()
