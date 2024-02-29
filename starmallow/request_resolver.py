@@ -73,11 +73,16 @@ def request_params_to_args(
     values = {}
     error_store = ErrorStore()
     for field_name, param in endpoint_params.items():
+        if not param.alias and getattr(param, "convert_underscores", None):
+            alias = field_name.replace("_", "-")
+        else:
+            alias = param.alias or field_name
+
         if isinstance(param.model, mf.Field):
             try:
                 # Load model from specific param
                 values[field_name] = param.model.deserialize(
-                    received_params.get(field_name, ma.missing),
+                    received_params.get(alias, ma.missing),
                     field_name,
                     received_params,
                 )
@@ -90,7 +95,7 @@ def request_params_to_args(
                     values[field_name] = param.model.load(received_params, unknown=ma.EXCLUDE)
                 else:
                     values[field_name] = param.model.load(
-                        received_params.get(field_name, ma.missing),
+                        received_params.get(alias, ma.missing),
                         unknown=ma.EXCLUDE,
                     )
             except ma.ValidationError as error:

@@ -183,16 +183,17 @@ class EndpointMixin:
         parameter_name: str,
         default_value: Any,
     ) -> Union[ma.Schema, mf.Field]:
-        model = type_annotation
+        model = getattr(parameter, 'model', None) or type_annotation
+
+        if isinstance(parameter, Param):
+            title = parameter.title or (parameter.alias or parameter_name).title().replace('_', ' ')
+        else:
+            title = parameter_name.title().replace('_', ' ')
 
         kwargs = {
             'required': True,
             'metadata': {
-                'title': (
-                    parameter.title
-                    if (isinstance(parameter, Param) and parameter.title)
-                    else parameter_name.title().replace('_', ' ')
-                ),
+                'title': title,
             },
         }
         # Ensure we pass parameter fields into the marshmallow field
@@ -350,12 +351,8 @@ class EndpointMixin:
 
             if isinstance(starmallow_param, Param):
                 # Create new field_info with processed model
-                field_info = starmallow_param.__class__(
-                    starmallow_param.default,
-                    deprecated=starmallow_param.deprecated,
-                    include_in_schema=starmallow_param.include_in_schema,
-                    model=model,
-                )
+                starmallow_param.model = model
+                field_info = starmallow_param
             elif isinstance(model, mf.Field):
                 # If marshmallow field with no Param defined
 

@@ -24,7 +24,7 @@ def get_query_ids(item_ids: DelimitedListInt):
 
 
 @app.get("/header")
-def get_header_ids(item_ids: DelimitedListInt = Header()):
+def get_header_ids(item_ids: DelimitedListInt = Header(convert_underscores=False)):
     return item_ids
 
 

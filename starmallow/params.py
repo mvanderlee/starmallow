@@ -33,6 +33,8 @@ class Param:
         self,
         default: Any = Ellipsis,
         *,
+        # alias to look the param up by.
+        alias: Optional[str] = None,
         deprecated: bool | None = None,
         include_in_schema: bool = True,
         model: ma.Schema | mf.Field = None,
@@ -49,12 +51,14 @@ class Param:
         min_length: int | None = None,
         max_length: int | None = None,
         regex: str | None = None,
+        # OpenAPI title
         title: str = None,
     ) -> None:
         self.default = default
         self.deprecated = deprecated
         self.include_in_schema = include_in_schema
         self.model = model
+        self.alias = alias
         self.title = title
 
         # Convience validators - fastapi compatibility
@@ -111,6 +115,49 @@ class Query(Param):
 class Header(Param):
     in_ = ParamType.header
 
+    def __init__(
+        self,
+        default: Any = Ellipsis,
+        *,
+        # alias to look the param up by.
+        alias: Optional[str] = None,
+        deprecated: bool | None = None,
+        include_in_schema: bool = True,
+        model: ma.Schema | mf.Field = None,
+        validators: None
+        | (
+            Callable[[Any], Any]
+            | Iterable[Callable[[Any], Any]]
+        ) = None,
+        # Convience validators
+        gt: float | None = None,
+        ge: float | None = None,
+        lt: float | None = None,
+        le: float | None = None,
+        min_length: int | None = None,
+        max_length: int | None = None,
+        regex: str | None = None,
+        # OpenAPI title
+        title: str = None,
+        convert_underscores: bool = True,
+    ) -> None:
+        self.convert_underscores = convert_underscores
+        super().__init__(
+            default=default,
+            alias=alias,
+            deprecated=deprecated,
+            include_in_schema=include_in_schema,
+            model=model,
+            validators=validators,
+            gt=gt,
+            ge=ge,
+            lt=lt,
+            le=le,
+            min_length=min_length,
+            max_length=max_length,
+            regex=regex,
+            title=title,
+        )
 
 class Cookie(Param):
     in_ = ParamType.cookie

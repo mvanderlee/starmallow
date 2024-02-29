@@ -2,7 +2,7 @@
     Tests various permutations of accepting input. i.e.: Path, Query, Body, etc
 '''
 
-from typing import Any, Dict, Literal
+from typing import Any, Dict, Literal, Optional
 
 import marshmallow as ma
 import marshmallow.fields as mf
@@ -177,8 +177,12 @@ def post_multi_combo(
     path_params: MultiPathParams = Path(),
     query_params: MultiQueryParams = Query(),
     body_params: MultiBodyParams = Body(),
-    weight_unit: Literal['lbs', 'kg'] = Query(),
+    weight_unit: Literal['lbs', 'kg'] = Query(title='Weight'),
     color: str = Header('blue'),
+    # Tests convert_underscores
+    user_agent: Optional[str] = Header(None),
+    # Tests aliasing
+    aliased_header: Optional[str] = Header(None, alias="myalias"),
 ):
     return {
         'item_id': item_id,
@@ -188,6 +192,8 @@ def post_multi_combo(
         'weight': body_params.weight,
         'weight_unit': weight_unit,
         'color': color,
+        'user_agent': user_agent,
+        'aliased_header': aliased_header,
     }
 # endregion
 
@@ -751,7 +757,7 @@ openapi_schema = {
                         'required': True,
                         'schema': {
                             'enum': ['lbs', 'kg'],
-                            'title': 'Weight Unit',
+                            'title': 'Weight',
                         },
                     },
                     {
@@ -779,6 +785,28 @@ openapi_schema = {
                         'schema': {
                             'default': 'blue',
                             'title': 'Color',
+                            'type': 'string',
+                        },
+                    },
+                    {
+                        'in': 'header',
+                        'name': 'user_agent',
+                        'required': False,
+                        'schema': {
+                            "default": None,
+                            "nullable": True,
+                            'title': 'User Agent',
+                            'type': 'string',
+                        },
+                    },
+                    {
+                        'in': 'header',
+                        'name': 'aliased_header',
+                        'required': False,
+                        'schema': {
+                            "default": None,
+                            "nullable": True,
+                            'title': 'Myalias',
                             'type': 'string',
                         },
                     },
@@ -903,7 +931,7 @@ def test_get_path(path, expected_status, expected_response):
         ),
         (
             "/multi_combo/5/3?name=foobar&weight_unit=lbs",
-            {'color': 'red'},
+            {'color': 'red', 'myalias': '007'},
             {'weight': 95.2},
             200,
             {
@@ -914,6 +942,8 @@ def test_get_path(path, expected_status, expected_response):
                 'weight': 95.2,
                 'weight_unit': 'lbs',
                 'color': 'red',
+                "user_agent": "testclient",
+                "aliased_header": '007',
             },
         ),
     ],
