@@ -184,6 +184,8 @@ class EndpointMixin:
         default_value: Any,
     ) -> Union[ma.Schema, mf.Field]:
         model = getattr(parameter, 'model', None) or type_annotation
+        if isinstance(model, SchemaModel):
+            return model
 
         if isinstance(parameter, Param):
             title = parameter.title or (parameter.alias or parameter_name).title().replace('_', ' ')
@@ -241,7 +243,7 @@ class EndpointMixin:
         if isinstance(model, NewType) and getattr(model, '_marshmallow_field', None):
             return model._marshmallow_field(**kwargs)
         elif is_marshmallow_schema(model):
-            return SchemaModel(model(), **kwargs)
+            return SchemaModel(model() if inspect.isclass(model) else model, **kwargs)
         elif is_marshmallow_field(model):
             if model.load_default is not None and model.load_default != kwargs.get('load_default', ma.missing):
                 logger.warning(
