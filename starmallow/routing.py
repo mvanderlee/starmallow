@@ -75,7 +75,7 @@ def get_request_handler(
     assert endpoint_model.call is not None, "dependant.call must be a function"
 
     async def app(request: Request) -> Response:
-        values, errors = await resolve_params(request, endpoint_model.params)
+        values, errors, background_tasks = await resolve_params(request, endpoint_model.params)
 
         if errors:
             raise RequestValidationError(errors)
@@ -85,6 +85,8 @@ def get_request_handler(
             values,
         )
         if isinstance(raw_response, Response):
+            if raw_response.background is None:
+                raw_response.background = background_tasks
             return raw_response
 
         response_data = raw_response
@@ -93,7 +95,7 @@ def get_request_handler(
         elif is_marshmallow_field(endpoint_model.response_model):
             response_data = endpoint_model.response_model._serialize(raw_response, attr='response', obj=raw_response)
 
-        response_args = {}
+        response_args: Dict[str, Any] = {"background": background_tasks}
         if endpoint_model.status_code is not None:
             response_args["status_code"] = endpoint_model.status_code
 

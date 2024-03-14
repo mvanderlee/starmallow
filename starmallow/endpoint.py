@@ -13,6 +13,7 @@ from typing import (
     Optional,
     Type,
     Union,
+    get_args,
     get_origin,
 )
 
@@ -42,7 +43,6 @@ from starmallow.responses import JSONResponse
 from starmallow.security.base import SecurityBaseResolver
 from starmallow.utils import (
     create_response_model,
-    get_args,
     get_model_field,
     get_path_param_names,
     get_typed_return_annotation,
