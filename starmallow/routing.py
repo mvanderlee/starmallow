@@ -102,6 +102,8 @@ def get_request_handler(
             response_args["status_code"] = sub_response.status_code
 
         response = endpoint_model.response_class(response_data, **response_args)
+        if not is_body_allowed_for_status_code(response.status_code):
+            response.body = b""
         response.headers.raw.extend(sub_response.headers.raw)
 
         return response
