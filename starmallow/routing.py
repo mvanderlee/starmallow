@@ -75,7 +75,7 @@ def get_request_handler(
     assert endpoint_model.call is not None, "dependant.call must be a function"
 
     async def app(request: Request) -> Response:
-        values, errors, background_tasks = await resolve_params(request, endpoint_model.params)
+        values, errors, background_tasks, sub_response = await resolve_params(request, endpoint_model.params)
 
         if errors:
             raise RequestValidationError(errors)
@@ -98,8 +98,11 @@ def get_request_handler(
         response_args: Dict[str, Any] = {"background": background_tasks}
         if endpoint_model.status_code is not None:
             response_args["status_code"] = endpoint_model.status_code
+        if sub_response.status_code:
+            response_args["status_code"] = sub_response.status_code
 
         response = endpoint_model.response_class(response_data, **response_args)
+        response.headers.raw.extend(sub_response.headers.raw)
 
         return response
 
@@ -112,7 +115,7 @@ def get_websocker_hander(
     assert endpoint_model.call is not None, "dependant.call must be a function"
 
     async def app(websocket: WebSocket) -> None:
-        values, errors = await resolve_params(websocket, endpoint_model.params)
+        values, errors, _, _ = await resolve_params(websocket, endpoint_model.params)
 
         if errors:
             await websocket.close(code=WS_1008_POLICY_VIOLATION)

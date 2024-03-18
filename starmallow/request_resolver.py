@@ -223,7 +223,7 @@ async def resolve_subparams(
             values[param_name] = dependency_cache[resolved_param.cache_key]
             continue
 
-        resolver_kwargs, resolver_errors, _ = await resolve_params(
+        resolver_kwargs, resolver_errors, _, _ = await resolve_params(
             request=request,
             background_tasks=background_tasks,
             response=response,
@@ -249,7 +249,7 @@ async def resolve_params(
     background_tasks: Optional[BackgroundTasks] = None,
     response: Optional[Response] = None,
     dependency_cache: Optional[Dict[Tuple[Callable[..., Any], Tuple[str]], Any]] = None,
-) -> Tuple[Dict[str, Any], Dict[str, Union[Any, List, Dict]], BackgroundTasks]:
+) -> Tuple[Dict[str, Any], Dict[str, Union[Any, List, Dict]], BackgroundTasks, Response]:
     dependency_cache = dependency_cache or {}
 
     if response is None:
@@ -294,4 +294,4 @@ async def resolve_params(
         **security_values,
         **arg_values,
         **resolved_values,
-    }, {}, background_tasks
+    }, {}, background_tasks, response
