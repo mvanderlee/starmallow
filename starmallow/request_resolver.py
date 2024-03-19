@@ -269,7 +269,7 @@ async def resolve_params(
         dependency_cache=dependency_cache,
     )
     if errors:
-        return None, errors, background_tasks
+        return None, errors, background_tasks, response
 
     arg_values, errors = await resolve_basic_args(
         request,
@@ -278,7 +278,7 @@ async def resolve_params(
         params,
     )
     if errors:
-        return None, errors, background_tasks
+        return None, errors, background_tasks, response
 
     resolved_values, errors = await resolve_subparams(
         request,
@@ -288,7 +288,7 @@ async def resolve_params(
         dependency_cache=dependency_cache,
     )
     if errors:
-        return None, errors, background_tasks
+        return None, errors, background_tasks, response
 
     return {
         **security_values,
