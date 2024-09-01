@@ -245,6 +245,9 @@ class EndpointMixin:
         elif is_marshmallow_schema(model):
             return SchemaModel(model() if inspect.isclass(model) else model, **kwargs)
         elif is_marshmallow_field(model):
+            if inspect.isclass(model):
+                model = model()
+
             if model.load_default is not None and model.load_default != kwargs.get('load_default', ma.missing):
                 logger.warning(
                     f"'{parameter_name}' model and annotation have different 'load_default' values."

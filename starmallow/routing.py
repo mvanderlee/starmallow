@@ -3,14 +3,32 @@ import functools
 import inspect
 import logging
 from enum import Enum, IntEnum
-from typing import Any, Callable, Coroutine, Dict, List, Optional, Set, Tuple, Type, Union
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Coroutine,
+    Dict,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+    Union,
+)
 
 import marshmallow as ma
 from starlette import routing
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
 from starlette.responses import Response
-from starlette.routing import BaseRoute, Match, compile_path, request_response
+from starlette.routing import (
+    BaseRoute,
+    Match,
+    compile_path,
+    is_async_callable,
+    wrap_app_handling_exceptions,
+)
 from starlette.status import WS_1008_POLICY_VIOLATION
 from starlette.types import ASGIApp, Receive, Scope, Send
 from starlette.websockets import WebSocket
@@ -55,6 +73,30 @@ async def run_endpoint_function(
         return await endpoint_model.call(**kwargs)
     else:
         return await run_in_threadpool(endpoint_model.call, **kwargs)
+
+
+def request_response(
+    func: Callable[[Request], Union[Awaitable[Response], Response]],
+    request_class: Type[Request],
+) -> ASGIApp:
+    """
+    Takes a function or coroutine `func(request) -> response`,
+    and returns an ASGI application.
+    """
+
+    async def app(scope: Scope, receive: Receive, send: Send) -> None:
+        request = request_class(scope, receive, send)
+
+        async def app(scope: Scope, receive: Receive, send: Send) -> None:
+            if is_async_callable(func):
+                response = await func(request)
+            else:
+                response = await run_in_threadpool(func, request)
+            await response(scope, receive, send)
+
+        await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+
+    return app
 
 
 def websocket_session(func: Callable) -> ASGIApp:
@@ -173,6 +215,9 @@ class APIRoute(routing.Route, EndpointMixin):
         include_in_schema: bool = True,
         status_code: Optional[int] = None,
         deprecated: Optional[bool] = None,
+        request_class: Union[Type[Request], DefaultPlaceholder] = Default(
+            Request,
+        ),
         response_model: Optional[ma.Schema] = None,
         response_class: Union[Type[Response], DefaultPlaceholder] = Default(
             JSONResponse,
@@ -205,7 +250,7 @@ class APIRoute(routing.Route, EndpointMixin):
             endpoint_handler = endpoint_handler.func
         if inspect.isfunction(endpoint_handler) or inspect.ismethod(endpoint_handler):
             # Endpoint is function or method. Treat it as `func(request) -> response`.
-            self.app = request_response(endpoint)
+            self.app = request_response(endpoint, request_class)
             if methods is None:
                 methods = ["GET"]
         else:
@@ -226,13 +271,22 @@ class APIRoute(routing.Route, EndpointMixin):
         self.status_code = status_code
         self.deprecated = deprecated
         self.response_model = response_model
-        self.response_class = response_class
         self.summary = summary
         self.operation_id = operation_id
         self.callbacks = callbacks
         self.tags = tags or []
         self.responses = responses or {}
         self.openapi_extra = openapi_extra
+
+        if isinstance(request_class, DefaultPlaceholder):
+            self.request_class: Request = request_class.value
+        else:
+            self.request_class = request_class
+
+        if isinstance(response_class, DefaultPlaceholder):
+            self.response_class: Response = response_class.value
+        else:
+            self.response_class = response_class
 
         self.generate_unique_id_function = generate_unique_id_function
         if isinstance(generate_unique_id_function, DefaultPlaceholder):
@@ -279,16 +333,16 @@ class APIRoute(routing.Route, EndpointMixin):
 
         self.endpoint_model = self.get_endpoint_model(
             self.path_format,
-            endpoint,
-            name=name,
+            self.endpoint,
+            name=self.name,
             methods=self.methods,
-            status_code=status_code,
-            response_model=response_model,
-            response_class=response_class,
+            status_code=self.status_code,
+            response_model=self.response_model,
+            response_class=self.response_class,
             route=self,
         )
 
-        self.app = request_response(get_request_handler(self.endpoint_model))
+        self.app = request_response(get_request_handler(self.endpoint_model), self.request_class)
 
 
 class APIRouter(routing.Router):
@@ -297,6 +351,7 @@ class APIRouter(routing.Router):
         self,
         *args,
         tags: Optional[List[Union[str, Enum]]] = None,
+        default_request_class: Type[Request] = Default(Request),
         default_response_class: Type[Response] = Default(JSONResponse),
         deprecated: Optional[bool] = None,
         include_in_schema: bool = True,
@@ -311,6 +366,7 @@ class APIRouter(routing.Router):
         super().__init__(*args, **kwargs)
 
         self.tags: List[Union[str, Enum]] = tags or []
+        self.default_request_class = default_request_class
         self.default_response_class = default_response_class
         self.deprecated = deprecated
         self.include_in_schema = include_in_schema
@@ -348,6 +404,7 @@ class APIRouter(routing.Router):
         include_in_schema: bool = True,
         status_code: Optional[int] = None,
         deprecated: Optional[bool] = None,
+        request_class: Type[Request] = Default(Request),
         response_model: Optional[Type[Any]] = None,
         response_class: Type[Response] = JSONResponse,
         # OpenAPI summary
@@ -394,6 +451,7 @@ class APIRouter(routing.Router):
                     include_in_schema=endpoint_options.include_in_schema and include_in_schema and self.include_in_schema,
                     status_code=endpoint_options.status_code or status_code,
                     deprecated=endpoint_options.deprecated or deprecated or self.deprecated,
+                    request_class=endpoint_options.request_class or request_class,
                     response_model=endpoint_options.response_model or response_model,
                     response_class=endpoint_options.response_class or response_class,
                     summary=endpoint_options.summary or summary,
@@ -418,6 +476,7 @@ class APIRouter(routing.Router):
                 include_in_schema=include_in_schema and self.include_in_schema,
                 status_code=status_code,
                 deprecated=deprecated or self.deprecated,
+                request_class=request_class,
                 response_model=response_model,
                 response_class=response_class,
                 summary=summary,
@@ -442,6 +501,7 @@ class APIRouter(routing.Router):
         include_in_schema: bool = True,
         status_code: Optional[int] = None,
         deprecated: Optional[bool] = None,
+        request_class: Type[Request] = Default(Request),
         response_model: Optional[Type[Any]] = None,
         response_class: Type[Response] = JSONResponse,
         # OpenAPI summary
@@ -468,6 +528,7 @@ class APIRouter(routing.Router):
                 include_in_schema=include_in_schema,
                 status_code=status_code,
                 deprecated=deprecated,
+                request_class=request_class,
                 response_model=response_model,
                 response_class=response_class,
                 summary=summary,
@@ -517,6 +578,7 @@ class APIRouter(routing.Router):
         *,
         prefix: str = "",
         tags: Optional[List[Union[str, Enum]]] = None,
+        default_request_class: Type[Request] = Default(Request),
         default_response_class: Type[Response] = Default(JSONResponse),
         responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
         callbacks: Optional[List[BaseRoute]] = None,
@@ -543,6 +605,12 @@ class APIRouter(routing.Router):
         for route in router.routes:
             if isinstance(route, APIRoute):
                 combined_responses = {**responses, **route.responses}
+                use_request_class = get_value_or_default(
+                    route.request_class,
+                    router.default_request_class,
+                    default_request_class,
+                    self.default_request_class,
+                )
                 use_response_class = get_value_or_default(
                     route.response_class,
                     router.default_response_class,
@@ -584,6 +652,7 @@ class APIRouter(routing.Router):
                         and self.include_in_schema
                         and include_in_schema
                     ),
+                    request_class=use_request_class,
                     response_class=use_response_class,
                     name=route.name,
                     openapi_extra=route.openapi_extra,
@@ -620,6 +689,7 @@ class APIRouter(routing.Router):
         include_in_schema: bool = True,
         status_code: Optional[int] = None,
         deprecated: Optional[bool] = None,
+        request_class: Type[Request] = Default(Request),
         response_model: Optional[Type[Any]] = None,
         response_class: Type[Response] = JSONResponse,
         # OpenAPI summary
@@ -644,6 +714,7 @@ class APIRouter(routing.Router):
             include_in_schema=include_in_schema,
             status_code=status_code,
             deprecated=deprecated,
+            request_class=request_class,
             response_model=response_model,
             response_class=response_class,
             summary=summary,
@@ -665,6 +736,7 @@ class APIRouter(routing.Router):
         include_in_schema: bool = True,
         status_code: Optional[int] = None,
         deprecated: Optional[bool] = None,
+        request_class: Type[Request] = Default(Request),
         response_model: Optional[Type[Any]] = None,
         response_class: Type[Response] = JSONResponse,
         # OpenAPI summary
@@ -689,6 +761,7 @@ class APIRouter(routing.Router):
             include_in_schema=include_in_schema,
             status_code=status_code,
             deprecated=deprecated,
+            request_class=request_class,
             response_model=response_model,
             response_class=response_class,
             summary=summary,
@@ -710,6 +783,7 @@ class APIRouter(routing.Router):
         include_in_schema: bool = True,
         status_code: Optional[int] = None,
         deprecated: Optional[bool] = None,
+        request_class: Type[Request] = Default(Request),
         response_model: Optional[Type[Any]] = None,
         response_class: Type[Response] = JSONResponse,
         # OpenAPI summary
@@ -734,6 +808,7 @@ class APIRouter(routing.Router):
             include_in_schema=include_in_schema,
             status_code=status_code,
             deprecated=deprecated,
+            request_class=request_class,
             response_model=response_model,
             response_class=response_class,
             summary=summary,
@@ -755,6 +830,7 @@ class APIRouter(routing.Router):
         include_in_schema: bool = True,
         status_code: Optional[int] = None,
         deprecated: Optional[bool] = None,
+        request_class: Type[Request] = Default(Request),
         response_model: Optional[Type[Any]] = None,
         response_class: Type[Response] = JSONResponse,
         # OpenAPI summary
@@ -779,6 +855,7 @@ class APIRouter(routing.Router):
             include_in_schema=include_in_schema,
             status_code=status_code,
             deprecated=deprecated,
+            request_class=request_class,
             response_model=response_model,
             response_class=response_class,
             summary=summary,
@@ -800,6 +877,7 @@ class APIRouter(routing.Router):
         include_in_schema: bool = True,
         status_code: Optional[int] = None,
         deprecated: Optional[bool] = None,
+        request_class: Type[Request] = Default(Request),
         response_model: Optional[Type[Any]] = None,
         response_class: Type[Response] = JSONResponse,
         # OpenAPI summary
@@ -824,6 +902,7 @@ class APIRouter(routing.Router):
             include_in_schema=include_in_schema,
             status_code=status_code,
             deprecated=deprecated,
+            request_class=request_class,
             response_model=response_model,
             response_class=response_class,
             summary=summary,
@@ -845,6 +924,7 @@ class APIRouter(routing.Router):
         include_in_schema: bool = True,
         status_code: Optional[int] = None,
         deprecated: Optional[bool] = None,
+        request_class: Type[Request] = Default(Request),
         response_model: Optional[Type[Any]] = None,
         response_class: Type[Response] = JSONResponse,
         # OpenAPI summary
@@ -869,6 +949,7 @@ class APIRouter(routing.Router):
             include_in_schema=include_in_schema,
             status_code=status_code,
             deprecated=deprecated,
+            request_class=request_class,
             response_model=response_model,
             response_class=response_class,
             summary=summary,
@@ -890,6 +971,7 @@ class APIRouter(routing.Router):
         include_in_schema: bool = True,
         status_code: Optional[int] = None,
         deprecated: Optional[bool] = None,
+        request_class: Type[Request] = Default(Request),
         response_model: Optional[Type[Any]] = None,
         response_class: Type[Response] = JSONResponse,
         # OpenAPI summary
@@ -914,6 +996,7 @@ class APIRouter(routing.Router):
             include_in_schema=include_in_schema,
             status_code=status_code,
             deprecated=deprecated,
+            request_class=request_class,
             response_model=response_model,
             response_class=response_class,
             summary=summary,
@@ -935,6 +1018,7 @@ class APIRouter(routing.Router):
         include_in_schema: bool = True,
         status_code: Optional[int] = None,
         deprecated: Optional[bool] = None,
+        request_class: Type[Request] = Default(Request),
         response_model: Optional[Type[Any]] = None,
         response_class: Type[Response] = JSONResponse,
         # OpenAPI summary
@@ -959,6 +1043,7 @@ class APIRouter(routing.Router):
             include_in_schema=include_in_schema,
             status_code=status_code,
             deprecated=deprecated,
+            request_class=request_class,
             response_model=response_model,
             response_class=response_class,
             summary=summary,
