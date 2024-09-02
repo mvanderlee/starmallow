@@ -40,6 +40,7 @@ class EndpointOptions:
     tags: Optional[List[Union[str, Enum]]] = None
     # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
     openapi_extra: Optional[Dict[str, Any]] = None
+    route_class: Optional[Type["APIRoute"]] = None
 
 
 def route(
@@ -65,6 +66,7 @@ def route(
     tags: Optional[List[Union[str, Enum]]] = None,
     # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
     openapi_extra: Optional[Dict[str, Any]] = None,
+    route_class: Optional[Type["APIRoute"]] = None,
 ) -> Callable[[DecoratedCallable], DecoratedCallable]:
     '''
         Intended to be used with APIHTTPEndpoint to override options on a per method basis
@@ -88,6 +90,7 @@ def route(
             generate_unique_id_function=generate_unique_id_function,
             openapi_extra=openapi_extra,
             tags=tags,
+            route_class=route_class,
         )
         return func
     return decorator

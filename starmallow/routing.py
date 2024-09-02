@@ -342,7 +342,10 @@ class APIRoute(routing.Route, EndpointMixin):
             route=self,
         )
 
-        self.app = request_response(get_request_handler(self.endpoint_model), self.request_class)
+        self.app = request_response(self.get_route_handler(), self.request_class)
+
+    def get_route_handler(self):
+        return get_request_handler(self.endpoint_model)
 
 
 class APIRouter(routing.Router):
@@ -361,6 +364,7 @@ class APIRouter(routing.Router):
             generate_unique_id,
         ),
         prefix: str = "",
+        route_class: Optional[Type[APIRoute]] = APIRoute,
         **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
@@ -374,6 +378,7 @@ class APIRouter(routing.Router):
         self.callbacks = callbacks or []
         self.generate_unique_id_function = generate_unique_id_function
         self.prefix = prefix
+        self.route_class = route_class
 
     def route(
         self,
@@ -421,7 +426,9 @@ class APIRouter(routing.Router):
         tags: Optional[List[Union[str, Enum]]] = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
         openapi_extra: Optional[Dict[str, Any]] = None,
+        route_class: Optional[Type[APIRoute]] = None,
     ) -> None:
+        route_class = route_class or self.route_class
 
         current_tags = self.tags.copy()
         if tags:
@@ -443,7 +450,8 @@ class APIRouter(routing.Router):
                 if endpoint_options.tags:
                     method_tags.extend(endpoint_options.tags)
 
-                route = APIRoute(
+                endpoint_route_class = endpoint_options.route_class or route_class
+                route = endpoint_route_class(
                     self.prefix + path,
                     endpoint_function,
                     methods=[method],
@@ -468,7 +476,7 @@ class APIRouter(routing.Router):
                 self.routes.append(route)
 
         else:
-            route = APIRoute(
+            route = route_class(
                 self.prefix + path,
                 endpoint,
                 methods=methods,
@@ -518,6 +526,7 @@ class APIRouter(routing.Router):
         tags: Optional[List[Union[str, Enum]]] = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
         openapi_extra: Optional[Dict[str, Any]] = None,
+        route_class: Optional[Type[APIRoute]] = None,
     ) -> Callable[[DecoratedCallable], DecoratedCallable]:
         def decorator(func: DecoratedCallable) -> DecoratedCallable:
             self.add_api_route(
@@ -540,6 +549,7 @@ class APIRouter(routing.Router):
                 generate_unique_id_function=generate_unique_id_function,
                 openapi_extra=openapi_extra,
                 tags=tags,
+                route_class=route_class,
             )
             return func
         return decorator
@@ -657,6 +667,7 @@ class APIRouter(routing.Router):
                     name=route.name,
                     openapi_extra=route.openapi_extra,
                     generate_unique_id_function=current_generate_unique_id,
+                    route_class=route.__class__,
                 )
             elif isinstance(route, routing.Route):
                 methods = list(route.methods or [])
@@ -706,6 +717,7 @@ class APIRouter(routing.Router):
         tags: Optional[List[Union[str, Enum]]] = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
         openapi_extra: Optional[Dict[str, Any]] = None,
+        route_class: Optional[Type[APIRoute]] = None,
     ):
         return self.api_route(
             path,
@@ -726,6 +738,7 @@ class APIRouter(routing.Router):
             generate_unique_id_function=generate_unique_id_function,
             openapi_extra=openapi_extra,
             tags=tags,
+            route_class=route_class,
         )
 
     def put(
@@ -753,6 +766,7 @@ class APIRouter(routing.Router):
         tags: Optional[List[Union[str, Enum]]] = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
         openapi_extra: Optional[Dict[str, Any]] = None,
+        route_class: Optional[Type[APIRoute]] = None,
     ):
         return self.api_route(
             path,
@@ -773,6 +787,7 @@ class APIRouter(routing.Router):
             generate_unique_id_function=generate_unique_id_function,
             openapi_extra=openapi_extra,
             tags=tags,
+            route_class=route_class,
         )
 
     def post(
@@ -800,6 +815,7 @@ class APIRouter(routing.Router):
         tags: Optional[List[Union[str, Enum]]] = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
         openapi_extra: Optional[Dict[str, Any]] = None,
+        route_class: Optional[Type[APIRoute]] = None,
     ):
         return self.api_route(
             path,
@@ -820,6 +836,7 @@ class APIRouter(routing.Router):
             generate_unique_id_function=generate_unique_id_function,
             openapi_extra=openapi_extra,
             tags=tags,
+            route_class=route_class,
         )
 
     def delete(
@@ -847,6 +864,7 @@ class APIRouter(routing.Router):
         tags: Optional[List[Union[str, Enum]]] = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
         openapi_extra: Optional[Dict[str, Any]] = None,
+        route_class: Optional[Type[APIRoute]] = None,
     ):
         return self.api_route(
             path,
@@ -867,6 +885,7 @@ class APIRouter(routing.Router):
             generate_unique_id_function=generate_unique_id_function,
             openapi_extra=openapi_extra,
             tags=tags,
+            route_class=route_class,
         )
 
     def options(
@@ -894,6 +913,7 @@ class APIRouter(routing.Router):
         tags: Optional[List[Union[str, Enum]]] = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
         openapi_extra: Optional[Dict[str, Any]] = None,
+        route_class: Optional[Type[APIRoute]] = None,
     ):
         return self.api_route(
             path,
@@ -914,6 +934,7 @@ class APIRouter(routing.Router):
             generate_unique_id_function=generate_unique_id_function,
             openapi_extra=openapi_extra,
             tags=tags,
+            route_class=route_class,
         )
 
     def head(
@@ -941,6 +962,7 @@ class APIRouter(routing.Router):
         tags: Optional[List[Union[str, Enum]]] = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
         openapi_extra: Optional[Dict[str, Any]] = None,
+        route_class: Optional[Type[APIRoute]] = None,
     ):
         return self.api_route(
             path,
@@ -961,6 +983,7 @@ class APIRouter(routing.Router):
             generate_unique_id_function=generate_unique_id_function,
             openapi_extra=openapi_extra,
             tags=tags,
+            route_class=route_class,
         )
 
     def patch(
@@ -988,6 +1011,7 @@ class APIRouter(routing.Router):
         tags: Optional[List[Union[str, Enum]]] = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
         openapi_extra: Optional[Dict[str, Any]] = None,
+        route_class: Optional[Type[APIRoute]] = None,
     ):
         return self.api_route(
             path,
@@ -1008,6 +1032,7 @@ class APIRouter(routing.Router):
             generate_unique_id_function=generate_unique_id_function,
             openapi_extra=openapi_extra,
             tags=tags,
+            route_class=route_class,
         )
 
     def trace(
@@ -1035,6 +1060,7 @@ class APIRouter(routing.Router):
         tags: Optional[List[Union[str, Enum]]] = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
         openapi_extra: Optional[Dict[str, Any]] = None,
+        route_class: Optional[Type[APIRoute]] = None,
     ):
         return self.api_route(
             path,
@@ -1055,4 +1081,5 @@ class APIRouter(routing.Router):
             generate_unique_id_function=generate_unique_id_function,
             openapi_extra=openapi_extra,
             tags=tags,
+            route_class=route_class,
         )
