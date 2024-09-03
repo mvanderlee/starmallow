@@ -11,6 +11,7 @@ from typing import (
     Dict,
     List,
     Optional,
+    Sequence,
     Set,
     Tuple,
     Type,
@@ -20,6 +21,7 @@ from typing import (
 import marshmallow as ma
 from starlette import routing
 from starlette.concurrency import run_in_threadpool
+from starlette.middleware import Middleware
 from starlette.requests import Request
 from starlette.responses import Response
 from starlette.routing import (
@@ -213,6 +215,7 @@ class APIRoute(routing.Route, EndpointMixin):
         name: Optional[str] = None,
         methods: Optional[Union[Set[str], List[str]]] = None,
         include_in_schema: bool = True,
+        middleware: Sequence[Middleware] | None = None,
         status_code: Optional[int] = None,
         deprecated: Optional[bool] = None,
         request_class: Union[Type[Request], DefaultPlaceholder] = Default(
@@ -342,7 +345,11 @@ class APIRoute(routing.Route, EndpointMixin):
             route=self,
         )
 
+        self.middleware = middleware  # Store for include_router
         self.app = request_response(self.get_route_handler(), self.request_class)
+        if middleware is not None:
+            for cls, args, kwargs in reversed(middleware):
+                self.app = cls(app=self.app, *args, **kwargs)  # noqa: B026
 
     def get_route_handler(self):
         return get_request_handler(self.endpoint_model)
@@ -365,9 +372,10 @@ class APIRouter(routing.Router):
         ),
         prefix: str = "",
         route_class: Optional[Type[APIRoute]] = APIRoute,
+        middleware: Sequence[Middleware] | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, middleware=middleware, **kwargs)
 
         self.tags: List[Union[str, Enum]] = tags or []
         self.default_request_class = default_request_class
@@ -379,6 +387,7 @@ class APIRouter(routing.Router):
         self.generate_unique_id_function = generate_unique_id_function
         self.prefix = prefix
         self.route_class = route_class
+        self.middleware = middleware
 
     def route(
         self,
@@ -408,6 +417,7 @@ class APIRouter(routing.Router):
         name: str = None,
         include_in_schema: bool = True,
         status_code: Optional[int] = None,
+        middleware: Sequence[Middleware] | None = None,
         deprecated: Optional[bool] = None,
         request_class: Type[Request] = Default(Request),
         response_model: Optional[Type[Any]] = None,
@@ -458,6 +468,7 @@ class APIRouter(routing.Router):
                     name=endpoint_options.name or name,
                     include_in_schema=endpoint_options.include_in_schema and include_in_schema and self.include_in_schema,
                     status_code=endpoint_options.status_code or status_code,
+                    middleware=endpoint_options.middleware or middleware,
                     deprecated=endpoint_options.deprecated or deprecated or self.deprecated,
                     request_class=endpoint_options.request_class or request_class,
                     response_model=endpoint_options.response_model or response_model,
@@ -483,6 +494,7 @@ class APIRouter(routing.Router):
                 name=name,
                 include_in_schema=include_in_schema and self.include_in_schema,
                 status_code=status_code,
+                middleware=middleware,
                 deprecated=deprecated or self.deprecated,
                 request_class=request_class,
                 response_model=response_model,
@@ -508,6 +520,7 @@ class APIRouter(routing.Router):
         name: str = None,
         include_in_schema: bool = True,
         status_code: Optional[int] = None,
+        middleware: Sequence[Middleware] | None = None,
         deprecated: Optional[bool] = None,
         request_class: Type[Request] = Default(Request),
         response_model: Optional[Type[Any]] = None,
@@ -536,6 +549,7 @@ class APIRouter(routing.Router):
                 name=name,
                 include_in_schema=include_in_schema,
                 status_code=status_code,
+                middleware=middleware,
                 deprecated=deprecated,
                 request_class=request_class,
                 response_model=response_model,
@@ -643,11 +657,19 @@ class APIRouter(routing.Router):
                     generate_unique_id_function,
                     self.generate_unique_id_function,
                 )
+
+                middleware = []
+                if router.middleware:
+                    middleware.extend(router.middleware)
+                if route.middleware:
+                    middleware.extend(route.middleware)
+
                 self.add_api_route(
                     prefix + route.path,
                     route.endpoint,
                     response_model=route.response_model,
                     status_code=route.status_code,
+                    middleware=middleware,
                     tags=current_tags,
                     summary=route.summary,
                     description=route.description,
@@ -699,6 +721,7 @@ class APIRouter(routing.Router):
         name: str = None,
         include_in_schema: bool = True,
         status_code: Optional[int] = None,
+        middleware: Sequence[Middleware] | None = None,
         deprecated: Optional[bool] = None,
         request_class: Type[Request] = Default(Request),
         response_model: Optional[Type[Any]] = None,
@@ -725,6 +748,7 @@ class APIRouter(routing.Router):
             name=name,
             include_in_schema=include_in_schema,
             status_code=status_code,
+            middleware=middleware,
             deprecated=deprecated,
             request_class=request_class,
             response_model=response_model,
@@ -748,6 +772,7 @@ class APIRouter(routing.Router):
         name: str = None,
         include_in_schema: bool = True,
         status_code: Optional[int] = None,
+        middleware: Sequence[Middleware] | None = None,
         deprecated: Optional[bool] = None,
         request_class: Type[Request] = Default(Request),
         response_model: Optional[Type[Any]] = None,
@@ -774,6 +799,7 @@ class APIRouter(routing.Router):
             name=name,
             include_in_schema=include_in_schema,
             status_code=status_code,
+            middleware=middleware,
             deprecated=deprecated,
             request_class=request_class,
             response_model=response_model,
@@ -797,6 +823,7 @@ class APIRouter(routing.Router):
         name: str = None,
         include_in_schema: bool = True,
         status_code: Optional[int] = None,
+        middleware: Sequence[Middleware] | None = None,
         deprecated: Optional[bool] = None,
         request_class: Type[Request] = Default(Request),
         response_model: Optional[Type[Any]] = None,
@@ -823,6 +850,7 @@ class APIRouter(routing.Router):
             name=name,
             include_in_schema=include_in_schema,
             status_code=status_code,
+            middleware=middleware,
             deprecated=deprecated,
             request_class=request_class,
             response_model=response_model,
@@ -846,6 +874,7 @@ class APIRouter(routing.Router):
         name: str = None,
         include_in_schema: bool = True,
         status_code: Optional[int] = None,
+        middleware: Sequence[Middleware] | None = None,
         deprecated: Optional[bool] = None,
         request_class: Type[Request] = Default(Request),
         response_model: Optional[Type[Any]] = None,
@@ -872,6 +901,7 @@ class APIRouter(routing.Router):
             name=name,
             include_in_schema=include_in_schema,
             status_code=status_code,
+            middleware=middleware,
             deprecated=deprecated,
             request_class=request_class,
             response_model=response_model,
@@ -895,6 +925,7 @@ class APIRouter(routing.Router):
         name: str = None,
         include_in_schema: bool = True,
         status_code: Optional[int] = None,
+        middleware: Sequence[Middleware] | None = None,
         deprecated: Optional[bool] = None,
         request_class: Type[Request] = Default(Request),
         response_model: Optional[Type[Any]] = None,
@@ -921,6 +952,7 @@ class APIRouter(routing.Router):
             name=name,
             include_in_schema=include_in_schema,
             status_code=status_code,
+            middleware=middleware,
             deprecated=deprecated,
             request_class=request_class,
             response_model=response_model,
@@ -944,6 +976,7 @@ class APIRouter(routing.Router):
         name: str = None,
         include_in_schema: bool = True,
         status_code: Optional[int] = None,
+        middleware: Sequence[Middleware] | None = None,
         deprecated: Optional[bool] = None,
         request_class: Type[Request] = Default(Request),
         response_model: Optional[Type[Any]] = None,
@@ -970,6 +1003,7 @@ class APIRouter(routing.Router):
             name=name,
             include_in_schema=include_in_schema,
             status_code=status_code,
+            middleware=middleware,
             deprecated=deprecated,
             request_class=request_class,
             response_model=response_model,
@@ -993,6 +1027,7 @@ class APIRouter(routing.Router):
         name: str = None,
         include_in_schema: bool = True,
         status_code: Optional[int] = None,
+        middleware: Sequence[Middleware] | None = None,
         deprecated: Optional[bool] = None,
         request_class: Type[Request] = Default(Request),
         response_model: Optional[Type[Any]] = None,
@@ -1019,6 +1054,7 @@ class APIRouter(routing.Router):
             name=name,
             include_in_schema=include_in_schema,
             status_code=status_code,
+            middleware=middleware,
             deprecated=deprecated,
             request_class=request_class,
             response_model=response_model,
@@ -1042,6 +1078,7 @@ class APIRouter(routing.Router):
         name: str = None,
         include_in_schema: bool = True,
         status_code: Optional[int] = None,
+        middleware: Sequence[Middleware] | None = None,
         deprecated: Optional[bool] = None,
         request_class: Type[Request] = Default(Request),
         response_model: Optional[Type[Any]] = None,
@@ -1068,6 +1105,7 @@ class APIRouter(routing.Router):
             name=name,
             include_in_schema=include_in_schema,
             status_code=status_code,
+            middleware=middleware,
             deprecated=deprecated,
             request_class=request_class,
             response_model=response_model,

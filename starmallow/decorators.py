@@ -1,7 +1,8 @@
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Type, Union
 
+from starlette.middleware import Middleware
 from starlette.requests import Request
 from starlette.responses import Response
 from starlette.routing import BaseRoute
@@ -20,6 +21,7 @@ class EndpointOptions:
     name: str = None
     include_in_schema: bool = True
     status_code: Optional[int] = None
+    middleware: Sequence[Middleware] | None = None
     deprecated: Optional[bool] = None
     request_class: Type[Request] = Request
     response_model: Optional[Type[Any]] = None
@@ -48,6 +50,7 @@ def route(
     name: str = None,
     include_in_schema: bool = True,
     status_code: Optional[int] = None,
+    middleware: Sequence[Middleware] | None = None,
     deprecated: Optional[bool] = None,
     request_class: Type[Request] = Default(Request),
     response_model: Optional[Type[Any]] = None,
@@ -77,6 +80,7 @@ def route(
             name=name,
             include_in_schema=include_in_schema,
             status_code=status_code,
+            middleware=middleware,
             deprecated=deprecated,
             request_class=request_class,
             response_model=response_model,
