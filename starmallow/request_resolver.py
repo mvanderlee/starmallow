@@ -90,16 +90,22 @@ def request_params_to_args(
                 error_store.store_error(error.messages, field_name)
         elif isinstance(param.model, ma.Schema):
             try:
-                if ignore_namespace:
-                    # Load model from entire params
-                    values[field_name] = param.model.load(received_params, unknown=ma.EXCLUDE)
-                else:
-                    values[field_name] = param.model.load(
-                        received_params.get(alias, ma.missing),
-                        unknown=ma.EXCLUDE,
-                    )
+                load_params = received_params if ignore_namespace else received_params.get(alias, {})
+
+                # Entire model is optional and no data was passed in.
+                # if getattr(param.model, 'required') is False and not load_params:
+                #     values[field_name] = None
+                # else:
+                    # NOTE: If schema is not required, but there are some params defined then we will try to load
+                    # This is because multiple schemas/fields may be defined per ParamType.
+                values[field_name] = param.model.load(load_params, unknown=ma.EXCLUDE)
+
             except ma.ValidationError as error:
-                error_store.store_error(error.messages)
+                # Entire model is optional, so ignore errors
+                if getattr(param.model, 'required', None) is False:
+                    values[field_name] = None
+                else:
+                    error_store.store_error(error.messages)
         else:
             raise Exception(f'Invalid model type {type(param.model)}, expected marshmallow Schema or Field')
 

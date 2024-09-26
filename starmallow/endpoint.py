@@ -153,8 +153,10 @@ class SchemaModel(ma.Schema):
             self.schema,
             required=self.required,
             load_default=self.load_default,
+            unknown=ma.EXCLUDE,
             **self.kwargs,
             metadata=metadata,
+
         )
 
     def load(

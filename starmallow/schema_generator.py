@@ -223,6 +223,7 @@ class SchemaGenerator(BaseSchemaGenerator):
             *endpoint.form_params.items(),
         ]
         schema_by_media_type = {}
+        is_body_required = True
 
         # If only 1 schema is defined. Use it as the entire schema.
         if len(all_body_params) == 1 and isinstance(all_body_params[0][1].model, ma.Schema):
@@ -232,6 +233,9 @@ class SchemaGenerator(BaseSchemaGenerator):
 
             if endpoint_schema:
                 schema_by_media_type[body_param.media_type] = {'schema': endpoint_schema}
+
+            if getattr(body_param.model, 'required', True) is False:
+                is_body_required = False
 
         # Otherwise, loop over all body params and build a new schema from the key value pairs.
         # This mimic's FastApi's behaviour: https://fastapi.tiangolo.com/tutorial/body-multiple-params/#multiple-body-parameters
@@ -280,7 +284,7 @@ class SchemaGenerator(BaseSchemaGenerator):
         if schema_by_media_type:
             schema['requestBody'] = {
                 'content': schema_by_media_type,
-                'required': True,
+                'required': is_body_required,
             }
 
     def _add_security_params(
