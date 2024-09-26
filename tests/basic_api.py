@@ -2,7 +2,7 @@ import datetime as dt
 import http
 from decimal import Decimal
 from enum import Enum
-from typing import Final, FrozenSet, Literal, Optional
+from typing import Final, FrozenSet, Literal, Optional, Union
 from uuid import UUID
 
 from marshmallow.validate import Length, Range, Regexp
@@ -353,6 +353,24 @@ def get_query_optional(query=None):
         return "foo bar"
     return f"foo bar {query}"
 
+
+@app.get("/query/optional_annotated")
+def get_query_optional_annotated(query: Optional[str] = None):
+    if query is None:
+        return "foo bar"
+    return f"foo bar {query}"
+
+@app.get("/query/optional_piped")
+def get_query_optional_piped(query: str | None = None):
+    if query is None:
+        return "foo bar"
+    return f"foo bar {query}"
+
+@app.get("/query/optional_unioned")
+def get_query_optional_unioned(query: Union[str, None] = None):
+    if query is None:
+        return "foo bar"
+    return f"foo bar {query}"
 
 @app.get("/query/int")
 def get_query_type(query: int):

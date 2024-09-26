@@ -159,6 +159,7 @@ class Header(Param):
             title=title,
         )
 
+
 class Cookie(Param):
     in_ = ParamType.cookie
 

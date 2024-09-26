@@ -9,7 +9,7 @@ from contextlib import AsyncExitStack, asynccontextmanager, contextmanager
 from dataclasses import is_dataclass
 from decimal import Decimal
 from enum import Enum
-from types import NoneType
+from types import NoneType, UnionType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -191,7 +191,7 @@ def is_body_allowed_for_status_code(status_code: int | str | None) -> bool:
 
 
 def is_optional(field):
-    return get_origin(field) is Union and type(None) in get_args(field)
+    return get_origin(field) in (Union, UnionType) and type(None) in get_args(field)
 
 
 def get_path_param_names(path: str) -> Set[str]:

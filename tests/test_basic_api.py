@@ -1908,6 +1908,96 @@ openapi_schema = {
                 ],
             },
         },
+        "/query/optional_annotated": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError",
+                                },
+                            },
+                        },
+                    },
+                },
+                "summary": "Get Query Optional Annotated",
+                "operationId": "get_query_optional_annotated_query_optional_annotated_get",
+                "parameters": [
+                    {
+                        "required": False,
+                        "schema": {"title": "Query", 'default': None, "type": "string", 'nullable': True},
+                        "name": "query",
+                        "in": "query",
+                    },
+                ],
+            },
+        },
+        "/query/optional_piped": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError",
+                                },
+                            },
+                        },
+                    },
+                },
+                "summary": "Get Query Optional Piped",
+                "operationId": "get_query_optional_piped_query_optional_piped_get",
+                "parameters": [
+                    {
+                        "required": False,
+                        "schema": {"title": "Query", 'default': None, "type": "string", 'nullable': True},
+                        "name": "query",
+                        "in": "query",
+                    },
+                ],
+            },
+        },
+        "/query/optional_unioned": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError",
+                                },
+                            },
+                        },
+                    },
+                },
+                "summary": "Get Query Optional Unioned",
+                "operationId": "get_query_optional_unioned_query_optional_unioned_get",
+                "parameters": [
+                    {
+                        "required": False,
+                        "schema": {"title": "Query", 'default': None, "type": "string", 'nullable': True},
+                        "name": "query",
+                        "in": "query",
+                    },
+                ],
+            },
+        },
         "/query/int": {
             "get": {
                 "responses": {
