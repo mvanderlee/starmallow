@@ -93,12 +93,10 @@ def request_params_to_args(
                 load_params = received_params if ignore_namespace else received_params.get(alias, {})
 
                 # Entire model is optional and no data was passed in.
-                # if getattr(param.model, 'required') is False and not load_params:
-                #     values[field_name] = None
-                # else:
-                    # NOTE: If schema is not required, but there are some params defined then we will try to load
-                    # This is because multiple schemas/fields may be defined per ParamType.
-                values[field_name] = param.model.load(load_params, unknown=ma.EXCLUDE)
+                if getattr(param.model, 'required', None) is False and not load_params:
+                    values[field_name] = None
+                else:
+                    values[field_name] = param.model.load(load_params, unknown=ma.EXCLUDE)
 
             except ma.ValidationError as error:
                 # Entire model is optional, so ignore errors
