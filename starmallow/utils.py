@@ -75,6 +75,7 @@ PY_TO_MF_MAPPING = {
     dt.time: mf.Time,
     dt.timedelta: mf.TimeDelta,
     uuid.UUID: mf.UUID,
+    Any: mf.Raw,
 }
 
 PY_ITERABLES = [
