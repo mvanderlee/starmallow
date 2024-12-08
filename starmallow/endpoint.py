@@ -211,6 +211,7 @@ class EndpointMixin:
             kwargs.update({
                 'load_default': None,
                 'required': False,
+                'allow_none': True,  # Even if a default is provided, we should also allow None
             })
             # This does not support Union[A,B,C,None]. Only Union[A,None] and Optional[A]
             model = next((a for a in get_args(type_annotation) if a is not None), None)

@@ -913,6 +913,7 @@ openapi_schema = {
                         'required': False,
                         'schema': {
                             'default': 'blue',
+                            "nullable": True,
                             'title': 'Color',
                             'type': 'string',
                         },
