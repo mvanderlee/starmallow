@@ -96,7 +96,12 @@ def request_response(
                 response = await run_in_threadpool(func, request)
             await response(scope, receive, send)
 
-        await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+        try:
+            await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+        except RuntimeError as e:
+            # This likely means that the exception was thrown by a background task
+            # after the response has been successfully send to the client
+            logger.exception(f'Runtime error occurred: {e}')
 
     return app
 

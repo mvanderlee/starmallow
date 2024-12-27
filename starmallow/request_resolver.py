@@ -8,13 +8,14 @@ import marshmallow as ma
 import marshmallow.fields as mf
 from marshmallow.error_store import ErrorStore
 from marshmallow.utils import missing as missing_
-from starlette.background import BackgroundTasks
+from starlette.background import BackgroundTasks as StarletteBackgroundTasks
 from starlette.datastructures import FormData, Headers, QueryParams
 from starlette.exceptions import HTTPException
 from starlette.requests import HTTPConnection, Request
 from starlette.responses import Response
 from starlette.websockets import WebSocket
 
+from starmallow.background import BackgroundTasks
 from starmallow.params import Param, ParamType, ResolvedParam
 from starmallow.utils import (
     is_async_gen_callable,
@@ -113,7 +114,7 @@ def request_params_to_args(
 async def resolve_basic_args(
     request: Request | WebSocket,
     response: Response,
-    background_tasks: BackgroundTasks,
+    background_tasks: StarletteBackgroundTasks,
     params: Dict[ParamType, Dict[str, Param]],
 ):
     path_values, path_errors = request_params_to_args(
@@ -183,7 +184,7 @@ async def resolve_basic_args(
             values[param_name] = request
         elif lenient_issubclass(param_type, Response):
             values[param_name] = response
-        elif lenient_issubclass(param_type, BackgroundTasks):
+        elif lenient_issubclass(param_type, StarletteBackgroundTasks):
             values[param_name] = background_tasks
 
     return values, errors
@@ -217,7 +218,7 @@ async def call_resolver(
 async def resolve_subparams(
     request: Request | WebSocket,
     response: Response,
-    background_tasks: BackgroundTasks,
+    background_tasks: StarletteBackgroundTasks,
     params: Dict[str, ResolvedParam],
     dependency_cache: Optional[Dict[Tuple[Callable[..., Any], Tuple[str]], Any]],
 ) -> Dict[str, Any]:
@@ -250,10 +251,10 @@ async def resolve_subparams(
 async def resolve_params(
     request: Request | WebSocket,
     params: Dict[ParamType, Dict[str, Param]],
-    background_tasks: Optional[BackgroundTasks] = None,
+    background_tasks: Optional[StarletteBackgroundTasks] = None,
     response: Optional[Response] = None,
     dependency_cache: Optional[Dict[Tuple[Callable[..., Any], Tuple[str]], Any]] = None,
-) -> Tuple[Dict[str, Any], Dict[str, Union[Any, List, Dict]], BackgroundTasks, Response]:
+) -> Tuple[Dict[str, Any], Dict[str, Union[Any, List, Dict]], StarletteBackgroundTasks, Response]:
     dependency_cache = dependency_cache or {}
 
     if response is None:
