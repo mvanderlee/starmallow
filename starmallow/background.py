@@ -18,7 +18,7 @@ class BackgroundTask(StarletteBackgroundTask):
             else:
                 await run_in_threadpool(self.func, *self.args, **self.kwargs)
         except BaseException as e:
-            logger.exception(f'Background Task {self.func} failed: {e}')
+            logger.exception(f'Background Task {self.func.__module__}.{self.func.__name__} failed: {e}')
 
 
 class BackgroundTasks(StarletteBackgroundTasks):
