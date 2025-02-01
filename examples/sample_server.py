@@ -5,7 +5,7 @@ import aiofiles.tempfile
 import marshmallow.fields as mf
 import orjson
 from marshmallow.validate import Range
-from marshmallow_dataclass import dataclass as ma_dataclass
+from marshmallow_dataclass2 import dataclass as ma_dataclass
 from starlette.middleware import Middleware
 from starlette.middleware.gzip import GZipMiddleware
 from starlette_context import middleware, plugins

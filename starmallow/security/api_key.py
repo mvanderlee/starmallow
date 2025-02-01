@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import ClassVar, Optional
 
-from marshmallow_dataclass import dataclass as ma_dataclass
+from marshmallow_dataclass2 import dataclass as ma_dataclass
 from starlette.requests import Request
 from starlette.status import HTTP_403_FORBIDDEN
 

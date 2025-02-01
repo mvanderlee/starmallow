@@ -13,7 +13,7 @@ Create a file `main.py` with:
 
 ```python
 from typing import Annotated
-from marshmallow_dataclass import dataclass
+from marshmallow_dataclass2 import dataclass
 from starmallow import Body, Path, StarMallow
 
 app = StarMallow()
@@ -76,7 +76,7 @@ INFO:     Application startup complete.
 You can also use class-based views. This can make it easier to organize your code and gives you an easy migration path if you use [flask-smorest](https://flask-smorest.readthedocs.io/)
 
 ```python
-from marshmallow_dataclass import dataclass
+from marshmallow_dataclass2 import dataclass
 from starmallow import StarMallow
 from starmallow.decorators import route
 from starmallow.endpoints import APIHTTPEndpoint

@@ -7,7 +7,7 @@ from typing import Any, Dict, Literal, Optional, Union
 import marshmallow as ma
 import marshmallow.fields as mf
 import pytest
-from marshmallow_dataclass import dataclass as ma_dataclass
+from marshmallow_dataclass2 import dataclass as ma_dataclass
 from starlette.background import BackgroundTasks
 from starlette.requests import HTTPConnection, Request
 from starlette.responses import Response

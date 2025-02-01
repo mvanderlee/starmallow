@@ -2,7 +2,7 @@ from typing import Any
 
 import marshmallow as ma
 import marshmallow.fields as mf
-import marshmallow_dataclass.collection_field as collection_field
+import marshmallow_dataclass2.collection_field as collection_field
 from apispec import APISpec
 from apispec.ext.marshmallow.common import get_fields
 from apispec.ext.marshmallow.field_converter import (
@@ -12,9 +12,9 @@ from apispec.ext.marshmallow.field_converter import (
 )
 from apispec.ext.marshmallow.openapi import OpenAPIConverter as ApiSpecOpenAPIConverter
 from marshmallow.utils import is_collection
+from marshmallow_dataclass2.union_field import Union as UnionField
 from packaging.version import Version
 
-from starmallow.union_field import Union as UnionField
 from starmallow.utils import MARSHMALLOW_ITERABLES
 
 # marshmallow field => (JSON Schema type, format)

@@ -33,15 +33,16 @@ from typing import (
 import dpath.util
 import marshmallow as ma
 import marshmallow.fields as mf
-import marshmallow_dataclass.collection_field as collection_field
+import marshmallow_dataclass2.collection_field as collection_field
 import typing_inspect
 from marshmallow.validate import Equal, OneOf
+from marshmallow_dataclass2 import class_schema, is_generic_alias_of_dataclass
+from marshmallow_dataclass2.union_field import Union as UnionField
 from starlette.responses import Response
 from typing_inspect import is_final_type, is_generic_type, is_literal_type
 
 from starmallow.concurrency import contextmanager_in_threadpool
 from starmallow.datastructures import DefaultPlaceholder, DefaultType
-from starmallow.union_field import Union as UnionField
 
 if TYPE_CHECKING:  # pragma: nocover
     from starmallow.routing import APIRoute
@@ -104,6 +105,9 @@ def get_model_field(model: Any, **kwargs) -> mf.Field:
 
     if is_marshmallow_dataclass(model):
         model = model.Schema
+
+    if is_generic_alias_of_dataclass(model):
+        model = class_schema(model)
 
     if is_marshmallow_schema(model):
         return mf.Nested(model if isinstance(model, ma.Schema) else model())

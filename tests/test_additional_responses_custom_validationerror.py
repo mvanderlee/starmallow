@@ -1,6 +1,6 @@
 import typing
 
-from marshmallow_dataclass import dataclass as ma_dataclass
+from marshmallow_dataclass2 import dataclass as ma_dataclass
 from starlette.responses import JSONResponse
 from starlette.testclient import TestClient
 

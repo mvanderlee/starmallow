@@ -2,7 +2,7 @@ import binascii
 from base64 import b64decode
 from typing import ClassVar, Optional
 
-from marshmallow_dataclass import dataclass as ma_dataclass
+from marshmallow_dataclass2 import dataclass as ma_dataclass
 from starlette.requests import Request
 from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_403_FORBIDDEN
 

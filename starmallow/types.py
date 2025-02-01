@@ -2,7 +2,7 @@ import uuid
 from typing import Any, Callable, List, TypeVar, Union
 
 import marshmallow.fields as mf
-from marshmallow_dataclass import NewType
+from marshmallow_dataclass2 import NewType
 
 import starmallow.fields as sf
 from starmallow.endpoints import APIHTTPEndpoint

@@ -20,6 +20,7 @@ from typing import (
 import marshmallow as ma
 import marshmallow.fields as mf
 from marshmallow.utils import missing as missing_
+from marshmallow_dataclass2 import class_schema, is_generic_alias_of_dataclass
 from starlette.background import BackgroundTasks
 from starlette.requests import HTTPConnection, Request
 from starlette.responses import Response
@@ -242,6 +243,9 @@ class EndpointMixin:
 
         if is_marshmallow_dataclass(model):
             model = model.Schema
+
+        if is_generic_alias_of_dataclass(model):
+            model = class_schema(model)
 
         if isinstance(model, NewType) and getattr(model, '_marshmallow_field', None):
             return model._marshmallow_field(**kwargs)

@@ -1,6 +1,6 @@
 from typing import Optional
 
-from marshmallow_dataclass import dataclass as ma_dataclass
+from marshmallow_dataclass2 import dataclass as ma_dataclass
 from starlette.testclient import TestClient
 
 from starmallow import StarMallow

@@ -1,7 +1,7 @@
 from typing import Any, Dict, List, Optional, Union
 
 import marshmallow as ma
-from marshmallow_dataclass import dataclass as ma_dataclass
+from marshmallow_dataclass2 import dataclass as ma_dataclass
 from starlette.requests import Request
 from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_403_FORBIDDEN
 

@@ -6,7 +6,7 @@ from typing import Final, FrozenSet, Literal, Optional, Union
 from uuid import UUID
 
 from marshmallow.validate import Length, Range, Regexp
-from marshmallow_dataclass import dataclass as ma_dataclass
+from marshmallow_dataclass2 import dataclass as ma_dataclass
 
 from starmallow import Path, Query, StarMallow
 

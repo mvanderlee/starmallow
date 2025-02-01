@@ -2,7 +2,7 @@ from enum import Enum
 from typing import Any, ClassVar, Dict, Optional
 
 import marshmallow as ma
-from marshmallow_dataclass import dataclass as ma_dataclass
+from marshmallow_dataclass2 import dataclass as ma_dataclass
 
 
 # Provided by: https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.1.0.md#security-scheme-object
