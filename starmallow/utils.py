@@ -34,12 +34,14 @@ import dpath.util
 import marshmallow as ma
 import marshmallow.fields as mf
 import marshmallow_dataclass.collection_field as collection_field
+import typing_inspect
 from marshmallow.validate import Equal, OneOf
 from starlette.responses import Response
 from typing_inspect import is_final_type, is_generic_type, is_literal_type
 
 from starmallow.concurrency import contextmanager_in_threadpool
 from starmallow.datastructures import DefaultPlaceholder, DefaultType
+from starmallow.union_field import Union as UnionField
 
 if TYPE_CHECKING:  # pragma: nocover
     from starmallow.routing import APIRoute
@@ -135,6 +137,25 @@ def get_model_field(model: Any, **kwargs) -> mf.Field:
     # enumerations
     if not is_generic_type(model) and lenient_issubclass(model, Enum):
         return mf.Enum(model, **kwargs)
+
+    # Union
+    if typing_inspect.is_union_type(model):
+        if typing_inspect.is_optional_type(model):
+            kwargs["allow_none"] = kwargs.get("allow_none", True)
+            kwargs["dump_default"] = kwargs.get("dump_default", None)
+            if not kwargs.get("required"):
+                kwargs["load_default"] = kwargs.get("load_default", None)
+            kwargs.setdefault("required", False)
+
+        arguments = get_args(model)
+        subtypes = [t for t in arguments if t is not NoneType]  # type: ignore
+        if len(subtypes) == 1:
+            return get_model_field(model, **kwargs)
+
+        return UnionField(
+            [(subtyp, get_model_field(subtyp, required=True)) for subtyp in subtypes],
+            **kwargs
+        )
 
     origin = get_origin(model)
     if origin not in PY_ITERABLES:

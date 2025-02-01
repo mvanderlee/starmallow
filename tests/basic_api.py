@@ -116,6 +116,11 @@ def get_final_id(item_id: FinalItem = Path()):
     return item_id
 
 
+@app.get("/path/union/{item_id}")
+def get_union_id(item_id: int | float | bool):
+    return item_id
+
+
 #########################################################
 # Test Path parameters
 #########################################################

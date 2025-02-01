@@ -14,6 +14,7 @@ from apispec.ext.marshmallow.openapi import OpenAPIConverter as ApiSpecOpenAPICo
 from marshmallow.utils import is_collection
 from packaging.version import Version
 
+from starmallow.union_field import Union as UnionField
 from starmallow.utils import MARSHMALLOW_ITERABLES
 
 # marshmallow field => (JSON Schema type, format)
@@ -98,6 +99,7 @@ class OpenAPIConverter(ApiSpecOpenAPIConverter):
         self.add_attribute_function(self.field2title)
         self.add_attribute_function(self.field2uniqueItems)
         self.add_attribute_function(self.field2enum)
+        self.add_attribute_function(self.field2union)
 
     # Overriding to add exclusiveMinimum and exclusiveMaximum support
     def field2range(self: FieldConverterMixin, field: mf.Field, ret) -> dict:
@@ -208,6 +210,35 @@ class OpenAPIConverter(ApiSpecOpenAPIConverter):
 
             if choices:
                 ret['enum'] = choices
+
+        return ret
+
+    def field2union(self: FieldConverterMixin, field: mf.Field, **kwargs: Any) -> dict:
+        ret = {}
+
+        if isinstance(field, UnionField):
+            union_types = []
+            untyped = False
+            for _, subfield in field.union_fields:
+                for field_class in type(subfield).__mro__:
+                    if field_class in self.field_mapping:
+                        type_, fmt = self.field_mapping[field_class]
+
+                        union_type = {}
+                        if type_:
+                            union_type['type'] = type_
+                        if fmt:
+                            union_type['fmt'] = fmt
+
+                        if union_type:
+                            union_types.append(union_type)
+                        else:
+                            # at least one untyped, so can't reliably create a schema
+                            untyped = True
+                        break
+
+            if union_types and not untyped:
+                ret['type'] = {'oneOf': union_types}
 
         return ret
 

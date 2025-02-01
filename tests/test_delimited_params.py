@@ -235,6 +235,7 @@ openapi_schema = {
     [
         ("/path/1,2,3,4", {}, 200, [1, 2, 3, 4]),
         ("/query?item_ids=5,4,3,2", {}, 200, [5, 4, 3, 2]),
+        ("/query?item_ids=", {}, 200, []),
         ("/header", {'item_ids': '6,8,7'}, 200, [6, 8, 7]),
         ("/openapi.json", {}, 200, openapi_schema),
     ],

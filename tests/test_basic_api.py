@@ -470,6 +470,51 @@ openapi_schema = {
                 ],
             },
         },
+        "/path/union/{item_id}": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {"application/json": {"schema": {}}},
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError",
+                                },
+                            },
+                        },
+                    },
+                },
+                "summary": "Get Union Id",
+                "operationId": "get_union_id_path_union__item_id__get",
+                "parameters": [
+                    {
+                        'in': 'path',
+                        'name': 'item_id',
+                        'required': True,
+                        'schema': {
+                            'title': 'Item Id',
+                            "type": {
+                                "oneOf": [
+                                    {
+                                        "type": "integer",
+                                    },
+                                    {
+                                        "type": "number",
+                                    },
+                                    {
+                                        "type": "boolean",
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                ],
+            },
+        },
         "/path/param/{item_id}": {
             "get": {
                 "responses": {
@@ -2259,7 +2304,10 @@ openapi_schema = {
     "path,expected_status,expected_response",
     [
         ("/api_route", 200, {"message": "Hello World"}),
-        ("/non_decorated_route", 200, {"message": "Hello World"}),
+        ("/path/union/500.0", 200, 500.0),
+        ("/path/union/200", 200, 200),
+        ("/path/union/true", 200, True),
+        ("/api_route", 200, {"message": "Hello World"}),
         ("/nonexistent", 404, {"detail": "Not Found"}),
         ("/openapi.json", 200, openapi_schema),
     ],
