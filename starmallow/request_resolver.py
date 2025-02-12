@@ -7,6 +7,7 @@ from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple, Union
 import marshmallow as ma
 import marshmallow.fields as mf
 from marshmallow.error_store import ErrorStore
+from marshmallow.exceptions import SCHEMA
 from marshmallow.utils import missing as missing_
 from starlette.background import BackgroundTasks as StarletteBackgroundTasks
 from starlette.datastructures import FormData, Headers, QueryParams
@@ -104,7 +105,7 @@ def request_params_to_args(
                 if getattr(param.model, 'required', None) is False:
                     values[field_name] = None
                 else:
-                    error_store.store_error(error.messages)
+                    error_store.store_error(error.messages, field_name=SCHEMA if ignore_namespace else field_name)
         else:
             raise Exception(f'Invalid model type {type(param.model)}, expected marshmallow Schema or Field')
 

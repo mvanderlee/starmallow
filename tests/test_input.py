@@ -177,6 +177,8 @@ def post_multi_combo(
     path_params: MultiPathParams = Path(),
     query_params: MultiQueryParams = Query(),
     body_params: MultiBodyParams = Body(),
+    weight: float = Body(),
+    height: float = Body(),
     weight_unit: Literal['lbs', 'kg'] = Query(title='Weight'),
     color: str = Header('blue'),
     # Tests convert_underscores
@@ -190,6 +192,8 @@ def post_multi_combo(
         'sub_item': path_params.sub_item_id,
         'name': query_params.name,
         'weight': body_params.weight,
+        'weight2': weight,
+        'height': height,
         'weight_unit': weight_unit,
         'color': color,
         'user_agent': user_agent,
@@ -197,6 +201,8 @@ def post_multi_combo(
     }
 
 # Test with flat arguments and schemas, and even some overlap, duplicated fields in flat and schema
+
+
 @app.post('/multi_combo_optional/{item_id}/{sub_item_id}')
 def post_multi_combo_optional(
     item_id: int,
@@ -841,7 +847,9 @@ openapi_schema = {
                 'requestBody': {
                     'content': {
                         'application/json': {
-                            'schema': {'$ref': '#/components/schemas/MultiBodyParams'},
+                            'schema': {
+                                '$ref': '#/components/schemas/Body_post_multi_combo_multi_combo__item_id___sub_item_id__post',
+                            },
                         },
                     },
                     'required': True,
@@ -987,6 +995,29 @@ openapi_schema = {
                 ],
                 "title": "Body_post_multi_flat_multi_flat__item_id___sub_item_id__post",
             },
+            "Body_post_multi_combo_multi_combo__item_id___sub_item_id__post": {
+                "type": "object",
+                "properties": {
+                    "body_params": {
+                        "$ref": "#/components/schemas/MultiBodyParams",
+                    },
+                    "height": {
+                        "type": "number",
+                        "title": "Height",
+                    },
+                    "weight": {
+                        "type": "number",
+                        "title": "Weight",
+                    },
+                },
+                "required": [
+                    "body_params",
+                    "height",
+                    "weight",
+                ],
+                "title": "Body_post_multi_combo_multi_combo__item_id___sub_item_id__post",
+
+            },
             "MultiBodyParams": {
                 "type": "object",
                 "properties": {
@@ -1062,7 +1093,11 @@ def test_get_path(path, expected_status, expected_response):
         (
             "/multi_combo/5/3?name=foobar&weight_unit=lbs",
             {'color': 'red', 'myalias': '007'},
-            {'weight': 95.2},
+            {
+                'body_params': {'weight': 95.2},
+                'weight': 59.2,
+                'height': 106.3,
+            },
             200,
             {
                 'item_id': 5,
@@ -1070,6 +1105,8 @@ def test_get_path(path, expected_status, expected_response):
                 'sub_item': 3,
                 'name': 'foobar',
                 'weight': 95.2,
+                'weight2': 59.2,
+                'height': 106.3,
                 'weight_unit': 'lbs',
                 'color': 'red',
                 "user_agent": "testclient",
@@ -1149,7 +1186,17 @@ def test_post_path(path, headers, body, expected_status, expected_response):
             {
                 "detail": {
                     "json": {
-                        "weight": ["Not a valid number."],
+                        "body_params": {
+                            "weight": [
+                                "Missing data for required field.",
+                            ],
+                        },
+                        "height": [
+                            "Missing data for required field.",
+                        ],
+                        "weight": [
+                            "Not a valid number.",
+                        ],
                     },
                     "path": {
                         "item_id": ["Not a valid integer.", "Not a valid integer."],
