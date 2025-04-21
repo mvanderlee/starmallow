@@ -41,7 +41,7 @@ class HTTPBaseModel(SecurityBase):
 @ma_dataclass(frozen=True)
 class HTTPBearerModel(HTTPBaseModel):
     scheme: str = "bearer"
-    bearer_format: str | None = None
+    bearerFormat: str | None = None
 
 
 class HTTPBase(SecurityBaseResolver):
@@ -134,12 +134,12 @@ class HTTPBearer(HTTPBase):
     def __init__(
         self,
         *,
-        bearer_format: str | None = None,
+        bearerFormat: str | None = None,  # noqa: N803
         scheme_name: str | None = None,
         description: str | None = None,
         auto_error: bool = True,
     ) -> None:
-        self.model = HTTPBearerModel(bearer_format=bearer_format, description=description)
+        self.model = HTTPBearerModel(bearerFormat=bearerFormat, description=description)
         self.scheme_name = scheme_name or self.__class__.__name__
         self.auto_error = auto_error
 

@@ -9,7 +9,7 @@ import starmallow.fields as sf
 from starmallow.delimited_field import DelimitedList
 from starmallow.endpoints import APIHTTPEndpoint
 
-EndpointCallable = Callable[[], Awaitable[Any] | Any] | Callable[[...], Awaitable[Any] | Any]
+EndpointCallable = Callable[..., Awaitable[Any] | Any]
 WebSocketEndpointCallable = Callable[[WebSocket], Awaitable[None]]
 DecoratedCallable = TypeVar("DecoratedCallable", bound=EndpointCallable | type[APIHTTPEndpoint])
 

@@ -1,1 +1,1 @@
-from .asyncexitstack import AsyncExitStackMiddleware
+from .asyncexitstack import AsyncExitStackMiddleware as AsyncExitStackMiddleware
