@@ -140,9 +140,8 @@ extend-immutable-calls = [
 venvPath = "."
 venv = ".venv"
 
-exclude = [
-    "examples/**/*.py",
-    "tests/**/*.py",
+include = [
+    "starmallow",
 ]
 
 pythonVersion = "3.11"
