@@ -3,7 +3,6 @@ import datetime as dt
 import inspect
 import logging
 import re
-import sys
 import uuid
 import warnings
 from collections.abc import Callable, Mapping, Sequence
@@ -16,6 +15,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     ForwardRef,
+    NotRequired,
     Protocol,
     TypeGuard,
     TypeVar,
@@ -38,12 +38,6 @@ from typing_inspect import is_final_type, is_generic_type, is_literal_type
 
 from starmallow.concurrency import contextmanager_in_threadpool
 from starmallow.datastructures import DefaultPlaceholder, DefaultType
-
-if sys.version_info >= (3, 11):
-    from typing import NotRequired
-else:
-    # Python 3.10 and below
-    from typing_extensions import NotRequired
 
 if TYPE_CHECKING:  # pragma: nocover
     from starmallow.routing import APIRoute

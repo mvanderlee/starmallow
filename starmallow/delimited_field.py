@@ -15,16 +15,9 @@ tells webargs where to parse the request argument from.
         "content_type": fields.Str(data_key="Content-Type", location="headers"),
     }
 """
-import sys
-from typing import Any, ClassVar, Generic, Protocol, TypeVar
+from typing import Any, ClassVar, Generic, Protocol, TypeVar, TypeVarTuple
 
 import marshmallow as ma
-
-if sys.version_info >= (3, 11):
-    from typing import TypeVarTuple
-else:
-    # Python 3.10 and below
-    from typing_extensions import TypeVarTuple
 
 from .generics import get_orig_class
 
@@ -73,7 +66,7 @@ class DelimitedFieldMixin:
             if not isinstance(value, str):
                 raise self.make_error("invalid")
 
-            values = value.split(self.delimiter) if value else []
+            values = value.split(self.delimiter)  # if value else []
             return super()._deserialize(values, attr, data, **kwargs)
 
 
@@ -101,7 +94,7 @@ class DelimitedList(DelimitedFieldMixin, ma.fields.List, Generic[T]):  # type: i
         super().__init__(cls_or_instance, **kwargs)
 
 
-class DelimitedTuple(DelimitedFieldMixin, ma.fields.Tuple, Generic[Ts]):  # type: ignore
+class DelimitedTuple(DelimitedFieldMixin, ma.fields.Tuple, Generic[*Ts]):  # type: ignore
     """A field which is similar to a Tuple, but takes its input as a delimited
     string (e.g. "foo,bar,baz").
 
