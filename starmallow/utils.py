@@ -3,8 +3,10 @@ import datetime as dt
 import inspect
 import logging
 import re
+import sys
 import uuid
 import warnings
+from collections.abc import Callable, Mapping, Sequence
 from contextlib import AsyncExitStack, asynccontextmanager, contextmanager
 from dataclasses import is_dataclass
 from decimal import Decimal
@@ -13,24 +15,17 @@ from types import NoneType, UnionType
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
-    Dict,
     ForwardRef,
-    FrozenSet,
-    List,
-    Mapping,
-    Sequence,
-    Set,
-    Tuple,
-    Type,
+    Protocol,
+    TypeGuard,
+    TypeVar,
     Union,
-    _eval_type,
-    _GenericAlias,
+    _eval_type,  # type: ignore
     get_args,
     get_origin,
 )
 
-import dpath.util
+import dpath
 import marshmallow as ma
 import marshmallow.fields as mf
 import marshmallow_dataclass2.collection_field as collection_field
@@ -44,12 +39,18 @@ from typing_inspect import is_final_type, is_generic_type, is_literal_type
 from starmallow.concurrency import contextmanager_in_threadpool
 from starmallow.datastructures import DefaultPlaceholder, DefaultType
 
+if sys.version_info >= (3, 11):
+    from typing import NotRequired
+else:
+    # Python 3.10 and below
+    from typing_extensions import NotRequired
+
 if TYPE_CHECKING:  # pragma: nocover
     from starmallow.routing import APIRoute
 
 logger = logging.getLogger(__name__)
 
-status_code_ranges: Dict[str, str] = {
+status_code_ranges: dict[str, str] = {
     "1XX": "Information",
     "2XX": "Success",
     "3XX": "Redirection",
@@ -58,7 +59,7 @@ status_code_ranges: Dict[str, str] = {
     "DEFAULT": "Default Response",
 }
 
-MARSHMALLOW_ITERABLES: Tuple[mf.Field] = (
+MARSHMALLOW_ITERABLES: tuple[type[mf.Field], ...] = (
     mf.Dict,
     mf.List,
     mf.Mapping,
@@ -83,23 +84,25 @@ PY_TO_MF_MAPPING = {
 
 PY_ITERABLES = [
     list,
-    List,
+    list,
     collections.abc.Sequence,
     Sequence,
     tuple,
-    Tuple,
+    tuple,
     set,
-    Set,
+    set,
     frozenset,
-    FrozenSet,
+    frozenset,
     dict,
-    Dict,
+    dict,
     collections.abc.Mapping,
     Mapping,
 ]
 
+T = TypeVar("T")
 
-def get_model_field(model: Any, **kwargs) -> mf.Field:
+
+def get_model_field(model: Any, **kwargs) -> mf.Field | None:
     if model == inspect._empty:
         return None
 
@@ -112,7 +115,7 @@ def get_model_field(model: Any, **kwargs) -> mf.Field:
     if is_marshmallow_schema(model):
         return mf.Nested(model if isinstance(model, ma.Schema) else model())
 
-    if is_marshmallow_field(model):
+    if is_marshmallow_field_or_generic(model):
         return model if isinstance(model, mf.Field) else model()
 
     # Native Python handling
@@ -132,10 +135,7 @@ def get_model_field(model: Any, **kwargs) -> mf.Field:
 
     if is_final_type(model):
         arguments = get_args(model)
-        if arguments:
-            subtyp = arguments[0]
-        else:
-            subtyp = Any
+        subtyp = arguments[0] if arguments else Any
         return get_model_field(subtyp, **kwargs)
 
     # enumerations
@@ -146,9 +146,9 @@ def get_model_field(model: Any, **kwargs) -> mf.Field:
     if typing_inspect.is_union_type(model):
         if typing_inspect.is_optional_type(model):
             kwargs["allow_none"] = kwargs.get("allow_none", True)
-            kwargs["dump_default"] = kwargs.get("dump_default", None)
+            kwargs["dump_default"] = kwargs.get("dump_default")
             if not kwargs.get("required"):
-                kwargs["load_default"] = kwargs.get("load_default", None)
+                kwargs["load_default"] = kwargs.get("load_default")
             kwargs.setdefault("required", False)
 
         arguments = get_args(model)
@@ -156,44 +156,47 @@ def get_model_field(model: Any, **kwargs) -> mf.Field:
         if len(subtypes) == 1:
             return get_model_field(model, **kwargs)
 
-        return UnionField(
-            [(subtyp, get_model_field(subtyp, required=True)) for subtyp in subtypes],
-            **kwargs
-        )
+        union_types = []
+        for subtyp in subtypes:
+            field = get_model_field(subtyp, required=True)
+            if field is not None:
+                union_types.append((subtyp, field))
+
+        return UnionField(union_types, **kwargs)
 
     origin = get_origin(model)
     if origin not in PY_ITERABLES:
         raise Exception(f'Unknown model type, model is {model}')
 
     arguments = get_args(model)
-    if origin in (list, List):
+    if origin in (list, list):
         child_type = get_model_field(arguments[0])
-        return mf.List(child_type, **kwargs)
+        return mf.List(child_type, **kwargs) # type: ignore
 
     if origin in (collections.abc.Sequence, Sequence) or (
-        origin in (tuple, Tuple)
+        origin in (tuple, tuple)
         and len(arguments) == 2
         and arguments[1] is Ellipsis
     ):
         child_type = get_model_field(arguments[0])
-        return collection_field.Sequence(child_type, **kwargs)
+        return collection_field.Sequence(child_type, **kwargs) # type: ignore
 
-    if origin in (set, Set):
+    if origin in (set, set):
         child_type = get_model_field(arguments[0])
-        return collection_field.Set(child_type, frozen=False, **kwargs)
+        return collection_field.Set(child_type, frozen=False, **kwargs) # type: ignore
 
-    if origin in (frozenset, FrozenSet):
+    if origin in (frozenset, frozenset):
         child_type = get_model_field(arguments[0])
-        return collection_field.Set(child_type, frozen=True, **kwargs)
+        return collection_field.Set(child_type, frozen=True, **kwargs) # type: ignore
 
-    if origin in (tuple, Tuple):
-        child_types = (
+    if origin in (tuple, tuple):
+        child_types = tuple(
             get_model_field(arg)
             for arg in arguments
         )
-        return mf.Tuple(child_types, **kwargs)
+        return mf.Tuple(child_types, **kwargs) # type: ignore
 
-    if origin in (dict, Dict, collections.abc.Mapping, Mapping):
+    if origin in (dict, dict, collections.abc.Mapping, Mapping):
         key_type = get_model_field(arguments[0])
         value_type = get_model_field(arguments[1])
         return mf.Dict(keys=key_type, values=value_type, **kwargs)
@@ -220,7 +223,7 @@ def is_optional(field):
     return get_origin(field) in (Union, UnionType) and type(None) in get_args(field)
 
 
-def get_path_param_names(path: str) -> Set[str]:
+def get_path_param_names(path: str) -> set[str]:
     return set(re.findall("{(.*?)}", path))
 
 
@@ -233,16 +236,47 @@ def generate_unique_id(route: "APIRoute") -> str:
     return operation_id
 
 
-def is_marshmallow_schema(obj):
-    return (inspect.isclass(obj) and issubclass(obj, ma.Schema)) or isinstance(obj, ma.Schema)
+class MaDataclassProtocol(Protocol):
+    Schema: NotRequired[type[ma.Schema]]
 
 
-def is_marshmallow_field(obj):
-    return (inspect.isclass(obj) and issubclass(obj, mf.Field)) or isinstance(obj, mf.Field)
+def is_marshmallow_schema(obj: Any) -> TypeGuard[ma.Schema | type[ma.Schema]]:
+    try:
+        return (inspect.isclass(obj) and issubclass(obj, ma.Schema)) or isinstance(obj, ma.Schema)
+    except TypeError:
+        # This is a workaround for the case where obj is a generic type
+        # and issubclass raises a TypeError.
+        return False
 
 
-def is_marshmallow_dataclass(obj):
-    return is_dataclass(obj) and hasattr(obj, 'Schema') and is_marshmallow_schema(obj.Schema)
+def is_marshmallow_field(obj: Any) -> TypeGuard[mf.Field | type[mf.Field]]:
+    try:
+        return (inspect.isclass(obj) and issubclass(obj, mf.Field)) or isinstance(obj, mf.Field)
+    except TypeError:
+        # This is a workaround for the case where obj is a generic type
+        # and issubclass raises a TypeError.
+        return False
+
+
+def is_marshmallow_field_or_generic(obj: Any) -> TypeGuard[mf.Field | type[mf.Field]]:
+    try:
+        return (
+            (inspect.isclass(obj) and issubclass(obj, mf.Field))
+            or isinstance(obj, mf.Field)
+            or (
+                isinstance(obj, typing_inspect.typingGenericAlias)
+                and lenient_issubclass(get_origin(obj), mf.Field)
+            )
+        )
+    except TypeError:
+        # This is a workaround for the case where obj is a generic type
+        # and issubclass raises a TypeError.
+        return False
+
+def is_marshmallow_dataclass(obj: MaDataclassProtocol | Any) -> TypeGuard[MaDataclassProtocol]:
+    schema = getattr(obj, 'Schema', None)
+
+    return is_dataclass(obj) and schema is not None and is_marshmallow_schema(schema)
 
 
 def is_async_gen_callable(call: Callable[..., Any]) -> bool:
@@ -263,29 +297,32 @@ async def solve_generator(
     *,
     call: Callable[..., Any],
     stack: AsyncExitStack,
-    gen_kwargs: Dict[str, Any],
+    gen_kwargs: dict[str, Any],
 ) -> Any:
     if is_gen_callable(call):
         cm = contextmanager_in_threadpool(contextmanager(call)(**gen_kwargs))
     elif is_async_gen_callable(call):
         cm = asynccontextmanager(call)(**gen_kwargs)
+    else:
+        raise ValueError(f"Cannot solve generator for {call}")
     return await stack.enter_async_context(cm)
 
 
-def lenient_issubclass(cls: Any, class_or_tuple: Union[Type[Any], Tuple[Type[Any], ...], None]) -> bool:
+def lenient_issubclass(cls: Any, class_or_tuple: type[Any] | tuple[type[Any | UnionType], ...] | UnionType) -> bool:
     try:
-        return isinstance(cls, type) and issubclass(cls, class_or_tuple)  # type: ignore[arg-type]
+        return isinstance(cls, type) and issubclass(cls, class_or_tuple)
     except TypeError:
-        if isinstance(cls, _GenericAlias):
-            return False
-        raise  # pragma: no cover
+        return False
 
 
-def eq_marshmallow_fields(left: mf.Field, right: mf.Field) -> bool:
+def eq_marshmallow_fields(left: mf.Field | Any, right: mf.Field | Any) -> bool:
     '''
         Marshmallow Fields don't have an __eq__ functions.
         This compares them instead.
     '''
+    if not (isinstance(left, mf.Field) and isinstance(right, mf.Field)):
+        return False
+
     left_dict = left.__dict__.copy()
     left_dict.pop('_creation_index', None)
     right_dict = right.__dict__.copy()
@@ -294,7 +331,7 @@ def eq_marshmallow_fields(left: mf.Field, right: mf.Field) -> bool:
     return left_dict == right_dict
 
 
-def __dict_creator__(current, segments, i, hints=()):
+def _dict_creator(current, segments, i, hints: Sequence | None = None):
     '''
         Create missing path components. Always create a dictionary.
 
@@ -303,17 +340,17 @@ def __dict_creator__(current, segments, i, hints=()):
     segment = segments[i]
 
     # Infer the type from the hints provided.
-    if i < len(hints):
+    if hints and i < len(hints):
         current[segment] = hints[i][1]()
     else:
         current[segment] = {}
 
 
-def dict_safe_add(d: Dict, path: str, value: Any):
-    dpath.new(d, path, value, separator='.', creator=__dict_creator__)
+def dict_safe_add(d: dict, path: str, value: Any):
+    dpath.new(d, path, value, separator='.', creator=_dict_creator)
 
 
-def deep_dict_update(main_dict: Dict[Any, Any], update_dict: Dict[Any, Any]) -> None:
+def deep_dict_update(main_dict: dict[Any, Any], update_dict: dict[Any, Any]) -> None:
     for key, value in update_dict.items():
         if (
             key in main_dict
@@ -331,7 +368,7 @@ def deep_dict_update(main_dict: Dict[Any, Any], update_dict: Dict[Any, Any]) -> 
             main_dict[key] = value
 
 
-def create_response_model(type_: Type[Any]) -> ma.Schema | mf.Field | None:
+def create_response_model(type_: type[Any] | Any | ma.Schema | mf.Field) -> mf.Field | None:
     if type_ in [inspect._empty, None] or (inspect.isclass(type_) and issubclass(type_, Response)):
         return None
 
@@ -347,7 +384,7 @@ def create_response_model(type_: Type[Any]) -> ma.Schema | mf.Field | None:
 def get_value_or_default(
     first_item: DefaultPlaceholder | DefaultType,
     *extra_items: DefaultPlaceholder | DefaultType,
-) -> DefaultPlaceholder | DefaultType:
+) -> Any:
     """
     Pass items or `DefaultPlaceholder`s by descending priority.
 
@@ -355,12 +392,15 @@ def get_value_or_default(
 
     Otherwise, the first item (a `DefaultPlaceholder`) will be returned.
     """
-    items = (first_item,) + extra_items
+    items = (first_item, *extra_items)
     for item in items:
         if not isinstance(item, DefaultPlaceholder):
             return item
-    return first_item
 
+    if isinstance(first_item, DefaultPlaceholder):
+        return first_item.value
+    else:
+        return first_item
 
 def get_name(endpoint: Callable) -> str:
     if inspect.isroutine(endpoint) or inspect.isclass(endpoint):
@@ -387,14 +427,14 @@ def get_typed_signature(call: Callable[..., Any]) -> inspect.Signature:
     return typed_signature
 
 
-def get_typed_annotation(annotation: Any, globalns: Dict[str, Any]) -> Any:
+def get_typed_annotation(annotation: Any, globalns: dict[str, Any]) -> Any:
     if isinstance(annotation, str):
         annotation = ForwardRef(annotation)
         annotation = evaluate_forwardref(annotation, globalns, globalns)
     return annotation
 
 
-def get_typed_return_annotation(call: Callable[..., Any]) -> Any:
+def get_typed_return_annotation(call: Callable[..., T]) -> T | None:
     signature = inspect.signature(call)
     annotation = signature.return_annotation
 

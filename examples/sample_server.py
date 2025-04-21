@@ -1,5 +1,6 @@
+import asyncio
 from dataclasses import asdict
-from typing import Annotated, Optional
+from typing import Annotated
 
 import aiofiles.tempfile
 import marshmallow.fields as mf
@@ -8,6 +9,7 @@ from marshmallow.validate import Range
 from marshmallow_dataclass2 import dataclass as ma_dataclass
 from starlette.middleware import Middleware
 from starlette.middleware.gzip import GZipMiddleware
+from starlette.responses import StreamingResponse
 from starlette_context import middleware, plugins
 
 from starmallow.applications import StarMallow
@@ -70,7 +72,7 @@ async def test(
     my_string: str = Body('foobar'),
     email: str = Body(..., model=mf.Email()),
     foobar: str = Header(...),
-    preference: Optional[str] = Cookie(...),
+    preference: str | None = Cookie(...),
 ) -> CreateResponse:
     print(create_request)
     print(limit)
@@ -139,3 +141,19 @@ async def put_tmp_file(create_request: CreateRequest) -> CreateResponse:
         await f.write(orjson.dumps(create_request))
 
     return asdict(create_request)
+
+
+@app.get('/streaming_response')
+async def streaming_response():
+    async def stream():
+        yield b'event: notification\n'
+        yield b'data: A long message to try and fill the buffer'
+        yield b'\n\n'
+
+        await asyncio.sleep(2)
+
+        yield b'event: notification\n'
+        yield b'data: all done'
+        yield b'\n\n'
+
+    return StreamingResponse(stream(), media_type="text/event-stream")

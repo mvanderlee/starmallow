@@ -8,52 +8,53 @@ from uuid import UUID
 
 logger = logging.getLogger(__name__)
 
-def json_default(obj):
-    if isinstance(obj, bytes):
-        return obj.hex()
-    elif isinstance(obj, set):
-        return list(obj)
-    elif isinstance(obj, Decimal):
-        return str(obj)
-    elif isinstance(obj, (datetime, date)):
-        return obj.isoformat()
-    elif isinstance(obj, UUID):
-        return str(obj)
-    elif is_dataclass(obj):
-        return asdict(obj)
-    elif isinstance(obj, Enum):
-        return obj.name
+
+def json_default(o):
+    if isinstance(o, bytes):
+        return o.hex()
+    elif isinstance(o, set):
+        return list(o)
+    elif isinstance(o, Decimal):
+        return str(o)
+    elif isinstance(o, datetime | date):
+        return o.isoformat()
+    elif isinstance(o, UUID):
+        return str(o)
+    elif is_dataclass(o) and not isinstance(o, type):
+        return asdict(o)
+    elif isinstance(o, Enum):
+        return o.name
 
 
 class JSONEncoder(json.JSONEncoder):
     '''
         Simple JSONEncoder that handles additional types
     '''
-    def default(self, obj):
-        if isinstance(obj, bytes):
-            return obj.hex()
-        elif isinstance(obj, set):
-            return list(obj)
-        elif isinstance(obj, Decimal):
-            return str(obj)
-        elif isinstance(obj, (datetime, date)):
-            return obj.isoformat()
-        elif isinstance(obj, UUID):
-            return str(obj)
-        elif is_dataclass(obj):
-            return asdict(obj)
-        elif isinstance(obj, Enum):
-            return obj.name
+    def default(self, o):
+        if isinstance(o, bytes):
+            return o.hex()
+        elif isinstance(o, set):
+            return list(o)
+        elif isinstance(o, Decimal):
+            return str(o)
+        elif isinstance(o, datetime | date):
+            return o.isoformat()
+        elif isinstance(o, UUID):
+            return str(o)
+        elif is_dataclass(o) and not isinstance(o, type):
+            return asdict(o)
+        elif isinstance(o, Enum):
+            return o.name
         # If a class and not any of the default types, automatically try to parse the object's attributes
-        elif not isinstance(obj, (str, int, float, type(None), list, dict)):
+        elif not isinstance(o, str | int | float | type(None) | list | dict):
             try:
-                data = vars(obj)
+                data = vars(o)
             except Exception:
-                logger.exception(f'Failed to encode {obj}')
+                logger.exception(f'Failed to encode {o}')
                 return None
             else:
                 return data
-        return json.JSONEncoder.default(self, obj)
+        return json.JSONEncoder.default(self, o)
 
     def encode(self, o):
         """Return a JSON string representation of a Python data structure.
@@ -78,12 +79,12 @@ class JSONEncoder(json.JSONEncoder):
         # The remainder would be a little slower, but acceptably so.
         try:
             chunks = self.iterencode(o, _one_shot=True)
-            if not isinstance(chunks, (list, tuple)):
+            if not isinstance(chunks, list | tuple):
                 chunks = list(chunks)
         except TypeError as e:
             if e.args[0].startswith('keys must be '):
                 chunks = self.iterencode(o, _one_shot=True, use_python_iterencode=True)
-                if not isinstance(chunks, (list, tuple)):
+                if not isinstance(chunks, list | tuple):
                     chunks = list(chunks)
             else:
                 raise
@@ -100,14 +101,12 @@ class JSONEncoder(json.JSONEncoder):
                 mysocket.write(chunk)
 
         """
-        if self.check_circular:
-            markers = {}
-        else:
-            markers = None
-        if self.ensure_ascii:
-            _encoder = json.encoder.encode_basestring_ascii
-        else:
-            _encoder = json.encoder.encode_basestring
+        markers = {} if self.check_circular else None
+        _encoder = (
+            json.encoder.encode_basestring_ascii
+            if self.ensure_ascii
+            else json.encoder.encode_basestring
+        )
 
         def floatstr(
             o,
@@ -130,17 +129,17 @@ class JSONEncoder(json.JSONEncoder):
                 return _repr(o)
 
             if not allow_nan:
-                raise ValueError(f"Out of range float values are not JSON compliant: {repr(o)}")
+                raise ValueError(f"Out of range float values are not JSON compliant: {o!r}")
 
             return text
 
         if (
             _one_shot
-            and json.encoder.c_make_encoder is not None
+            and json.encoder.c_make_encoder is not None # type: ignore
             and self.indent is None
             and not use_python_iterencode
         ):
-            _iterencode = json.encoder.c_make_encoder(
+            _iterencode = json.encoder.c_make_encoder( # type: ignore
                 markers, self.default, _encoder, self.indent,
                 self.key_separator, self.item_separator, self.sort_keys,
                 self.skipkeys, self.allow_nan,
@@ -166,15 +165,15 @@ def _make_iterencode(
     _skipkeys,
     _one_shot,
     ## HACK: hand-optimized bytecode; turn globals into locals
-    ValueError=ValueError,
-    dict=dict,
-    float=float,
-    id=id,
-    int=int,
-    isinstance=isinstance,
-    list=list,
-    str=str,
-    tuple=tuple,
+    ValueError=ValueError,  # noqa: A002, N803
+    dict=dict,  # noqa: A002
+    float=float,  # noqa: A002
+    id=id,  # noqa: A002
+    int=int,  # noqa: A002
+    isinstance=isinstance,  # noqa: A002
+    list=list,  # noqa: A002
+    str=str,  # noqa: A002
+    tuple=tuple,  # noqa: A002
     _intstr=int.__repr__,
 ):
 
@@ -235,7 +234,7 @@ def _make_iterencode(
             yield '\n' + _indent * _current_indent_level
         yield ']'
         if markers is not None:
-            del markers[markerid]
+            del markers[markerid] # type: ignore
 
     def _iterencode_dict(dct, _current_indent_level):
         if not dct:
@@ -256,10 +255,7 @@ def _make_iterencode(
             newline_indent = None
             item_separator = _item_separator
         first = True
-        if _sort_keys:
-            items = sorted(dct.items())
-        else:
-            items = dct.items()
+        items = sorted(dct.items()) if _sort_keys else dct.items()
         for key, value in items:
             if isinstance(key, str):
                 pass
@@ -324,7 +320,7 @@ def _make_iterencode(
             yield '\n' + _indent * _current_indent_level
         yield '}'
         if markers is not None:
-            del markers[markerid]
+            del markers[markerid] # type: ignore
 
     def _iterencode(o, _current_indent_level):
         if isinstance(o, str):
@@ -354,5 +350,5 @@ def _make_iterencode(
             o = _default(o)
             yield from _iterencode(o, _current_indent_level)
             if markers is not None:
-                del markers[markerid]
+                del markers[markerid] # type: ignore
     return _iterencode

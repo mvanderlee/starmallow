@@ -23,7 +23,7 @@ class BackgroundTask(StarletteBackgroundTask):
 
 class BackgroundTasks(StarletteBackgroundTasks):
     def add_task(
-        self, func: typing.Callable[P, typing.Any], *args: P.args, **kwargs: P.kwargs
+        self, func: typing.Callable[P, typing.Any], *args: P.args, **kwargs: P.kwargs,
     ) -> None:
         task = BackgroundTask(func, *args, **kwargs)
         self.tasks.append(task)

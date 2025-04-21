@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict, Optional
+from typing import Any
 
 import marshmallow as ma
 import marshmallow.fields as mf
@@ -21,14 +21,15 @@ except ImportError:  # pragma: nocover
 
 
 class JSONResponse(StarJSONResponse):
+    media_type = "application/json"
 
     def __init__(
         self,
         content: Any,
         status_code: int = 200,
-        headers: Optional[Dict[str, str]] = None,
-        media_type: Optional[str] = None,
-        background: Optional[BackgroundTask] = None,
+        headers: dict[str, str] | None = None,
+        media_type: str | None = None,
+        background: BackgroundTask | None = None,
     ) -> None:
         super().__init__(content, status_code, headers, media_type, background)
 

@@ -1,27 +1,31 @@
 import difflib
 import json
+from typing import Any
+
+import pytest
+
+
+def object_hook(obj: dict[str, Any]) -> Any:
+    new_obj = {}
+    for k, v in obj.items():
+        if isinstance(v, list) and len(v) != 0:
+            if isinstance(v[0], dict):
+                # Python3's sorted function doesn't handle dicts,
+                # so here we take the list of dicts, and sort them by their json string.
+                # This allows us to ignore the order when comparing list of dicts
+                tmp_dict = {json.dumps(d): d for d in v}
+                sorted_keys = sorted(tmp_dict.keys())
+                new_obj[k] = [tmp_dict[k] for k in sorted_keys]
+            else:
+                new_obj[k] = sorted(v, key=lambda x: x if x is not None else "")
+        else:
+            new_obj[k] = v
+    return new_obj
 
 
 class SortedDecoder(json.JSONDecoder):
     def __init__(self, *args, **kwargs):
-        json.JSONDecoder.__init__(self, *args, object_hook=self.object_hook, **kwargs)
-
-    def object_hook(self, obj):
-        new_obj = {}
-        for k, v in obj.items():
-            if isinstance(v, list) and len(v) != 0:
-                if isinstance(v[0], dict):
-                    # Python3's sorted function doesn't handle dicts,
-                    # so here we take the list of dicts, and sort them by their json string.
-                    # This allows us to ignore the order when comparing list of dicts
-                    tmp_dict = {json.dumps(d): d for d in v}
-                    sorted_keys = sorted(tmp_dict.keys())
-                    new_obj[k] = [tmp_dict[k] for k in sorted_keys]
-                else:
-                    new_obj[k] = sorted(v)
-            else:
-                new_obj[k] = v
-        return new_obj
+        json.JSONDecoder.__init__(self, *args, object_hook=object_hook, **kwargs)
 
 
 def assert_json(
@@ -44,4 +48,4 @@ def assert_json(
             fromfile="left",
             tofile="right",
         )
-        assert 0, "\n" + "".join(diff)
+        pytest.fail("\n" + "".join(diff))

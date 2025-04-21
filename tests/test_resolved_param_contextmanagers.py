@@ -1,5 +1,3 @@
-from typing import Dict
-
 from starlette.testclient import TestClient
 
 from starmallow import ResolvedParam, StarMallow
@@ -16,7 +14,7 @@ async def get_state():
     return state
 
 
-async def asyncgen_state(state: Dict[str, str] = ResolvedParam(get_state)):
+async def asyncgen_state(state: dict[str, str] = ResolvedParam(get_state)):
     state["/async"] = "asyncgen started"
     yield state["/async"]
     state["/async"] = "asyncgen completed"

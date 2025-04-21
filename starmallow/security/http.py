@@ -1,6 +1,7 @@
+import asyncio
 import binascii
 from base64 import b64decode
-from typing import ClassVar, Optional
+from typing import ClassVar
 
 from marshmallow_dataclass2 import dataclass as ma_dataclass
 from starlette.requests import Request
@@ -33,14 +34,14 @@ class HTTPAuthorizationCredentials:
 @ma_dataclass(frozen=True)
 class HTTPBaseModel(SecurityBase):
     type: ClassVar[SecurityTypes] = SecurityTypes.http
-    description: Optional[str] = None
-    scheme: str = None
+    description: str | None = None
+    scheme: str | None = None
 
 
 @ma_dataclass(frozen=True)
 class HTTPBearerModel(HTTPBaseModel):
     scheme: str = "bearer"
-    bearerFormat: Optional[str] = None
+    bearer_format: str | None = None
 
 
 class HTTPBase(SecurityBaseResolver):
@@ -49,8 +50,8 @@ class HTTPBase(SecurityBaseResolver):
         self,
         *,
         scheme: str,
-        scheme_name: Optional[str] = None,
-        description: Optional[str] = None,
+        scheme_name: str | None = None,
+        description: str | None = None,
         auto_error: bool = True,
     ) -> None:
         self.model = HTTPBaseModel(scheme=scheme, description=description)
@@ -59,7 +60,7 @@ class HTTPBase(SecurityBaseResolver):
 
     async def __call__(
         self, request: Request,
-    ) -> Optional[HTTPAuthorizationCredentials]:
+    ) -> HTTPAuthorizationCredentials | None:
         authorization = request.headers.get("Authorization")
         scheme, credentials = get_authorization_scheme_param(authorization)
         if not (authorization and scheme and credentials):
@@ -77,9 +78,9 @@ class HTTPBasic(HTTPBase):
     def __init__(
         self,
         *,
-        scheme_name: Optional[str] = None,
-        realm: Optional[str] = None,
-        description: Optional[str] = None,
+        scheme_name: str | None = None,
+        realm: str | None = None,
+        description: str | None = None,
         auto_error: bool = True,
     ) -> None:
         super().__init__(
@@ -93,13 +94,14 @@ class HTTPBasic(HTTPBase):
 
     async def __call__(  # type: ignore
         self, request: Request,
-    ) -> Optional[HTTPBasicCredentials]:
+    ) -> HTTPBasicCredentials | None:
         authorization = request.headers.get("Authorization")
         scheme, param = get_authorization_scheme_param(authorization)
-        if self.realm:
-            unauthorized_headers = {"WWW-Authenticate": f'Basic realm="{self.realm}"'}
-        else:
-            unauthorized_headers = {"WWW-Authenticate": "Basic"}
+        unauthorized_headers = (
+            {"WWW-Authenticate": f'Basic realm="{self.realm}"'}
+            if self.realm
+            else {"WWW-Authenticate": "Basic"}
+        )
         invalid_user_credentials_exc = HTTPException(
             status_code=HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",
@@ -115,9 +117,12 @@ class HTTPBasic(HTTPBase):
             else:
                 return None
         try:
-            data = b64decode(param).decode("ascii")
+            def decode(param: str) -> str:
+                return b64decode(param).decode("ascii")
+
+            data = await asyncio.to_thread(decode, param)
         except (ValueError, UnicodeDecodeError, binascii.Error):
-            raise invalid_user_credentials_exc
+            raise invalid_user_credentials_exc from None
         username, separator, password = data.partition(":")
         if not separator:
             raise invalid_user_credentials_exc
@@ -129,18 +134,18 @@ class HTTPBearer(HTTPBase):
     def __init__(
         self,
         *,
-        bearerFormat: Optional[str] = None,
-        scheme_name: Optional[str] = None,
-        description: Optional[str] = None,
+        bearer_format: str | None = None,
+        scheme_name: str | None = None,
+        description: str | None = None,
         auto_error: bool = True,
     ) -> None:
-        self.model = HTTPBearerModel(bearerFormat=bearerFormat, description=description)
+        self.model = HTTPBearerModel(bearer_format=bearer_format, description=description)
         self.scheme_name = scheme_name or self.__class__.__name__
         self.auto_error = auto_error
 
     async def __call__(
         self, request: Request,
-    ) -> Optional[HTTPAuthorizationCredentials]:
+    ) -> HTTPAuthorizationCredentials | None:
         authorization = request.headers.get("Authorization")
         scheme, credentials = get_authorization_scheme_param(authorization)
         if not (authorization and scheme and credentials):
@@ -166,8 +171,8 @@ class HTTPDigest(HTTPBase):
     def __init__(
         self,
         *,
-        scheme_name: Optional[str] = None,
-        description: Optional[str] = None,
+        scheme_name: str | None = None,
+        description: str | None = None,
         auto_error: bool = True,
     ) -> None:
         super().__init__(
@@ -179,7 +184,7 @@ class HTTPDigest(HTTPBase):
 
     async def __call__(
         self, request: Request,
-    ) -> Optional[HTTPAuthorizationCredentials]:
+    ) -> HTTPAuthorizationCredentials | None:
         authorization = request.headers.get("Authorization")
         scheme, credentials = get_authorization_scheme_param(authorization)
         if not (authorization and scheme and credentials):

@@ -1,4 +1,5 @@
-from typing import Any, ClassVar, Collection, Optional
+from collections.abc import Collection
+from typing import Any, ClassVar
 
 HTTP_METHOD_FUNCS = ("GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
 
@@ -8,7 +9,7 @@ class APIHTTPEndpoint:
     #: The methods this view is registered for. Uses the same default
     #: (``["GET", "HEAD", "OPTIONS"]``) as ``route`` and
     #: ``add_url_rule`` by default.
-    methods: ClassVar[Optional[Collection[str]]] = None
+    methods: ClassVar[Collection[str] | None] = None
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
 

@@ -2,23 +2,14 @@ import asyncio
 import functools
 import inspect
 import logging
+from collections.abc import Awaitable, Callable, Sequence
 from enum import Enum, IntEnum
 from typing import (
     Any,
-    Awaitable,
-    Callable,
-    Coroutine,
-    Dict,
-    List,
-    Optional,
-    Sequence,
-    Set,
-    Tuple,
-    Type,
-    Union,
 )
 
 import marshmallow as ma
+import marshmallow.fields as mf
 from starlette import routing
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware import Middleware
@@ -28,8 +19,8 @@ from starlette.routing import (
     BaseRoute,
     Match,
     compile_path,
-    is_async_callable,
-    wrap_app_handling_exceptions,
+    is_async_callable,  # type: ignore
+    wrap_app_handling_exceptions,  # type: ignore
 )
 from starlette.status import WS_1008_POLICY_VIOLATION
 from starlette.types import ASGIApp, Receive, Scope, Send
@@ -43,16 +34,15 @@ from starmallow.endpoints import APIHTTPEndpoint
 from starmallow.exceptions import RequestValidationError, WebSocketRequestValidationError
 from starmallow.request_resolver import resolve_params
 from starmallow.responses import JSONResponse
-from starmallow.types import DecoratedCallable
+from starmallow.types import DecoratedCallable, WebSocketEndpointCallable
 from starmallow.utils import (
+    MaDataclassProtocol,
     create_response_model,
     generate_unique_id,
     get_name,
     get_typed_signature,
     get_value_or_default,
     is_body_allowed_for_status_code,
-    is_marshmallow_field,
-    is_marshmallow_schema,
 )
 from starmallow.websockets import APIWebSocket
 
@@ -61,7 +51,7 @@ logger = logging.getLogger(__name__)
 
 async def run_endpoint_function(
     endpoint_model: EndpointModel,
-    values: Dict[str, Any],
+    values: dict[str, Any],
 ) -> Any:
     assert endpoint_model.call is not None, "endpoint_model.call must be a function"
 
@@ -78,8 +68,8 @@ async def run_endpoint_function(
 
 
 def request_response(
-    func: Callable[[Request], Union[Awaitable[Response], Response]],
-    request_class: Type[Request],
+    func: Callable[[Request], Awaitable[Response] | Response],
+    request_class: type[Request],
 ) -> ASGIApp:
     """
     Takes a function or coroutine `func(request) -> response`,
@@ -94,7 +84,7 @@ def request_response(
                 response = await func(request)
             else:
                 response = await run_in_threadpool(func, request)
-            await response(scope, receive, send)
+            await response(scope, receive, send) # type: ignore - TODO: Not sure what the type should be
 
         try:
             await wrap_app_handling_exceptions(app, request)(scope, receive, send)
@@ -120,7 +110,7 @@ def websocket_session(func: Callable) -> ASGIApp:
 
 def get_request_handler(
     endpoint_model: EndpointModel,
-) -> Callable[[Request], Coroutine[Any, Any, Response]]:
+) -> Callable[[Request], Awaitable[Response] | Response]:
     assert endpoint_model.call is not None, "dependant.call must be a function"
 
     async def app(request: Request) -> Response:
@@ -131,7 +121,7 @@ def get_request_handler(
 
         raw_response = await run_endpoint_function(
             endpoint_model,
-            values,
+            values or {},
         )
         if isinstance(raw_response, Response):
             if raw_response.background is None:
@@ -139,12 +129,13 @@ def get_request_handler(
             return raw_response
 
         response_data = raw_response
-        if is_marshmallow_schema(endpoint_model.response_model):
-            response_data = endpoint_model.response_model.dump(raw_response)
-        elif is_marshmallow_field(endpoint_model.response_model):
-            response_data = endpoint_model.response_model._serialize(raw_response, attr='response', obj=raw_response)
+        model = endpoint_model.response_model
+        if isinstance(model, ma.Schema):
+            response_data = model.dump(raw_response)
+        elif isinstance(model, mf.Field):
+            response_data = model._serialize(raw_response, attr='response', obj=raw_response)
 
-        response_args: Dict[str, Any] = {"background": background_tasks}
+        response_args: dict[str, Any] = {"background": background_tasks}
         if endpoint_model.status_code is not None:
             response_args["status_code"] = endpoint_model.status_code
         if sub_response.status_code:
@@ -162,7 +153,7 @@ def get_request_handler(
 
 def get_websocker_hander(
     endpoint_model: EndpointModel,
-) -> Callable[[Request], Coroutine[Any, Any, Response]]:
+) -> Callable[[WebSocket], Awaitable[None]]:
     assert endpoint_model.call is not None, "dependant.call must be a function"
 
     async def app(websocket: WebSocket) -> None:
@@ -174,7 +165,7 @@ def get_websocker_hander(
 
         await run_endpoint_function(
             endpoint_model,
-            values,
+            values or {},
         )
 
     return app
@@ -186,7 +177,7 @@ class APIWebSocketRoute(routing.WebSocketRoute, EndpointMixin):
         path: str,
         endpoint: Callable[..., Any],
         *,
-        name: Optional[str] = None,
+        name: str | None = None,
     ) -> None:
         self.path = path
         self.endpoint = endpoint
@@ -203,7 +194,7 @@ class APIWebSocketRoute(routing.WebSocketRoute, EndpointMixin):
             ),
         )
 
-    def matches(self, scope: Scope) -> Tuple[Match, Scope]:
+    def matches(self, scope: Scope) -> tuple[Match, Scope]:
         match, child_scope = super().matches(scope)
         if match != Match.NONE:
             child_scope["route"] = self
@@ -217,35 +208,29 @@ class APIRoute(routing.Route, EndpointMixin):
         path: str,
         endpoint: Callable[..., Any],
         *,
-        name: Optional[str] = None,
-        methods: Optional[Union[Set[str], List[str]]] = None,
+        name: str | None = None,
+        methods: Sequence[str] | None = None,
         include_in_schema: bool = True,
         middleware: Sequence[Middleware] | None = None,
-        status_code: Optional[int] = None,
-        deprecated: Optional[bool] = None,
-        request_class: Union[Type[Request], DefaultPlaceholder] = Default(
-            Request,
-        ),
-        response_model: Optional[ma.Schema] = None,
-        response_class: Union[Type[Response], DefaultPlaceholder] = Default(
-            JSONResponse,
-        ),
+        status_code: int | None = None,
+        deprecated: bool | None = None,
+        request_class: type[Request] | DefaultPlaceholder = Default(Request),
+        response_model: ma.Schema | type[ma.Schema | MaDataclassProtocol] | None = None,
+        response_class: type[Response] | DefaultPlaceholder = Default(JSONResponse),
         # OpenAPI summary
-        summary: Optional[str] = None,
-        description: Optional[str] = None,
+        summary: str | None = None,
+        description: str | None = None,
         response_description: str = "Successful Response",
-        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
-        callbacks: Optional[List[BaseRoute]] = None,
+        responses: dict[int | str, dict[str, Any]] | None = None,
+        callbacks: list[BaseRoute] | None = None,
         # Sets the OpenAPI operationId to be used in your path operation
-        operation_id: Optional[str] = None,
+        operation_id: str | None = None,
         # If operation_id is None, this function will be used to create one.
-        generate_unique_id_function: Union[
-            Callable[["APIRoute"], str], DefaultPlaceholder,
-        ] = Default(generate_unique_id),
+        generate_unique_id_function: Callable[["APIRoute"], str] | DefaultPlaceholder = Default(generate_unique_id),
         # OpenAPI tags
-        tags: Optional[List[Union[str, Enum]]] = None,
+        tags: list[str | Enum] | None = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
-        openapi_extra: Optional[Dict[str, Any]] = None,
+        openapi_extra: dict[str, Any] | None = None,
     ) -> None:
         # Copied from starlette, without the path assertion
         self.path = path
@@ -256,9 +241,15 @@ class APIRoute(routing.Route, EndpointMixin):
         endpoint_handler = endpoint
         while isinstance(endpoint_handler, functools.partial):
             endpoint_handler = endpoint_handler.func
+
+        if isinstance(request_class, DefaultPlaceholder):
+            self.request_class = request_class.value
+        else:
+            self.request_class = request_class
+
         if inspect.isfunction(endpoint_handler) or inspect.ismethod(endpoint_handler):
             # Endpoint is function or method. Treat it as `func(request) -> response`.
-            self.app = request_response(endpoint, request_class)
+            self.app = request_response(endpoint, self.request_class)
             if methods is None:
                 methods = ["GET"]
         else:
@@ -286,20 +277,15 @@ class APIRoute(routing.Route, EndpointMixin):
         self.responses = responses or {}
         self.openapi_extra = openapi_extra
 
-        if isinstance(request_class, DefaultPlaceholder):
-            self.request_class: Request = request_class.value
-        else:
-            self.request_class = request_class
-
         if isinstance(response_class, DefaultPlaceholder):
-            self.response_class: Response = response_class.value
+            self.response_class = response_class.value
         else:
             self.response_class = response_class
 
         self.generate_unique_id_function = generate_unique_id_function
         if isinstance(generate_unique_id_function, DefaultPlaceholder):
             current_generate_unique_id: Callable[
-                ["APIRoute"], str,
+                [APIRoute], str,
             ] = generate_unique_id_function.value
         else:
             current_generate_unique_id = generate_unique_id_function
@@ -335,7 +321,7 @@ class APIRoute(routing.Route, EndpointMixin):
                 response_field = create_response_model(type_=model)
                 response_fields[additional_status_code] = response_field
         if response_fields:
-            self.response_fields: Dict[Union[int, str], ma.Schema] = response_fields
+            self.response_fields: dict[int | str, ma.Schema] = response_fields
         else:
             self.response_fields = {}
 
@@ -343,7 +329,7 @@ class APIRoute(routing.Route, EndpointMixin):
             self.path_format,
             self.endpoint,
             name=self.name,
-            methods=self.methods,
+            methods=list(self.methods) if self.methods else None,
             status_code=self.status_code,
             response_model=self.response_model,
             response_class=self.response_class,
@@ -365,24 +351,24 @@ class APIRouter(routing.Router):
     def __init__(
         self,
         *args,
-        tags: Optional[List[Union[str, Enum]]] = None,
-        default_request_class: Type[Request] = Default(Request),
-        default_response_class: Type[Response] = Default(JSONResponse),
-        deprecated: Optional[bool] = None,
+        tags: list[str | Enum] | None = None,
+        default_request_class: type[Request] = Default(Request),
+        default_response_class: type[Response] = Default(JSONResponse),
+        deprecated: bool | None = None,
         include_in_schema: bool = True,
-        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
-        callbacks: Optional[List[BaseRoute]] = None,
+        responses: dict[int | str, dict[str, Any]] | None = None,
+        callbacks: list[BaseRoute] | None = None,
         generate_unique_id_function: Callable[[APIRoute], str] = Default(
             generate_unique_id,
         ),
         prefix: str = "",
-        route_class: Optional[Type[APIRoute]] = APIRoute,
+        route_class: type[APIRoute] = APIRoute,
         middleware: Sequence[Middleware] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(*args, middleware=middleware, **kwargs)
 
-        self.tags: List[Union[str, Enum]] = tags or []
+        self.tags: list[str | Enum] = tags or []
         self.default_request_class = default_request_class
         self.default_response_class = default_response_class
         self.deprecated = deprecated
@@ -397,11 +383,11 @@ class APIRouter(routing.Router):
     def route(
         self,
         path: str,
-        methods: Optional[List[str]] = None,
-        name: Optional[str] = None,
+        methods: list[str] | None = None,
+        name: str | None = None,
         include_in_schema: bool = True,
-    ) -> Callable[[DecoratedCallable], DecoratedCallable]:
-        def decorator(func: DecoratedCallable) -> DecoratedCallable:
+    ) -> Callable[[Callable[[Request], Awaitable[Response] | Response]], Callable[[Request], Awaitable[Response] | Response]]:
+        def decorator(func: Callable[[Request], Awaitable[Response] | Response]) -> Callable[[Request], Awaitable[Response] | Response]:
             self.add_route(
                 path,
                 func,
@@ -416,32 +402,32 @@ class APIRouter(routing.Router):
     def add_api_route(
         self,
         path: str,
-        endpoint: Union[Callable[..., Any], APIHTTPEndpoint],
+        endpoint: Callable[..., Any] | type(APIHTTPEndpoint),
         *,
-        methods: Optional[Union[Set[str], List[str]]] = None,
-        name: str = None,
+        methods: set[str] | list[str] | None = None,
+        name: str | None = None,
         include_in_schema: bool = True,
-        status_code: Optional[int] = None,
+        status_code: int | None = None,
         middleware: Sequence[Middleware] | None = None,
-        deprecated: Optional[bool] = None,
-        request_class: Type[Request] = Default(Request),
-        response_model: Optional[Type[Any]] = None,
-        response_class: Type[Response] = JSONResponse,
+        deprecated: bool | None = None,
+        request_class: type[Request] = Default(Request),
+        response_model: ma.Schema | type[ma.Schema | MaDataclassProtocol] | None = None,
+        response_class: type[Response] = JSONResponse,
         # OpenAPI summary
-        summary: Optional[str] = None,
-        description: Optional[str] = None,
+        summary: str | None = None,
+        description: str | None = None,
         response_description: str = "Successful Response",
-        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
-        callbacks: Optional[List[BaseRoute]] = None,
+        responses: dict[int | str, dict[str, Any]] | None = None,
+        callbacks: list[BaseRoute] | None = None,
         # Sets the OpenAPI operationId to be used in your path operation
-        operation_id: Optional[str] = None,
+        operation_id: str | None = None,
         # If operation_id is None, this function will be used to create one.
         generate_unique_id_function: Callable[["APIRoute"], str] = Default(generate_unique_id),
         # OpenAPI tags
-        tags: Optional[List[Union[str, Enum]]] = None,
+        tags: list[str | Enum] | None = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
-        openapi_extra: Optional[Dict[str, Any]] = None,
-        route_class: Optional[Type[APIRoute]] = None,
+        openapi_extra: dict[str, Any] | None = None,
+        route_class: type[APIRoute] | None = None,
     ) -> None:
         route_class = route_class or self.route_class
 
@@ -452,20 +438,26 @@ class APIRouter(routing.Router):
         if isinstance(endpoint, type(APIHTTPEndpoint)):
             # Ensure the functions are bound to a class instance
             # Currently all routes will share the same instance
-            endpoint = endpoint()
+            endpoint_instance = endpoint()
+            if endpoint_instance.methods is None:
+                raise ValueError("APIHTTPEndpoint must have methods set")
 
-            for method in endpoint.methods:
-                endpoint_function = getattr(endpoint, method.lower())
-                if hasattr(endpoint_function, 'endpoint_options'):
-                    endpoint_options = endpoint_function.endpoint_options
-                else:
-                    endpoint_options = EndpointOptions()
+            for method in endpoint_instance.methods:
+                endpoint_function = getattr(endpoint_instance, method.lower())
+                endpoint_options = (
+                    endpoint_function.endpoint_options
+                    if hasattr(endpoint_function, 'endpoint_options')
+                    else EndpointOptions()
+                )
 
                 method_tags = current_tags.copy()
                 if endpoint_options.tags:
                     method_tags.extend(endpoint_options.tags)
 
                 endpoint_route_class = endpoint_options.route_class or route_class
+                if endpoint_route_class is None:
+                    raise ValueError("route_class must be set on the endpoint")
+
                 route = endpoint_route_class(
                     self.prefix + path,
                     endpoint_function,
@@ -495,7 +487,7 @@ class APIRouter(routing.Router):
             route = route_class(
                 self.prefix + path,
                 endpoint,
-                methods=methods,
+                methods=list(methods) if methods else None,
                 name=name,
                 include_in_schema=include_in_schema and self.include_in_schema,
                 status_code=status_code,
@@ -521,30 +513,30 @@ class APIRouter(routing.Router):
         self,
         path: str,
         *,
-        methods: Optional[Union[Set[str], List[str]]] = None,
-        name: str = None,
+        methods: set[str] | list[str] | None = None,
+        name: str | None = None,
         include_in_schema: bool = True,
-        status_code: Optional[int] = None,
+        status_code: int | None = None,
         middleware: Sequence[Middleware] | None = None,
-        deprecated: Optional[bool] = None,
-        request_class: Type[Request] = Default(Request),
-        response_model: Optional[Type[Any]] = None,
-        response_class: Type[Response] = JSONResponse,
+        deprecated: bool | None = None,
+        request_class: type[Request] = Default(Request),
+        response_model: type[Any] | None = None,
+        response_class: type[Response] = JSONResponse,
         # OpenAPI summary
-        summary: Optional[str] = None,
-        description: Optional[str] = None,
+        summary: str | None = None,
+        description: str | None = None,
         response_description: str = "Successful Response",
-        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
-        callbacks: Optional[List[BaseRoute]] = None,
+        responses: dict[int | str, dict[str, Any]] | None = None,
+        callbacks: list[BaseRoute] | None = None,
         # Sets the OpenAPI operationId to be used in your path operation
-        operation_id: Optional[str] = None,
+        operation_id: str | None = None,
         # If operation_id is None, this function will be used to create one.
         generate_unique_id_function: Callable[["APIRoute"], str] = Default(generate_unique_id),
         # OpenAPI tags
-        tags: Optional[List[Union[str, Enum]]] = None,
+        tags: list[str | Enum] | None = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
-        openapi_extra: Optional[Dict[str, Any]] = None,
-        route_class: Optional[Type[APIRoute]] = None,
+        openapi_extra: dict[str, Any] | None = None,
+        route_class: type[APIRoute] | None = None,
     ) -> Callable[[DecoratedCallable], DecoratedCallable]:
         def decorator(func: DecoratedCallable) -> DecoratedCallable:
             self.add_api_route(
@@ -574,7 +566,7 @@ class APIRouter(routing.Router):
         return decorator
 
     def add_api_websocket_route(
-        self, path: str, endpoint: Callable[..., Any], name: Optional[str] = None,
+        self, path: str, endpoint: WebSocketEndpointCallable, name: str | None = None,
     ) -> None:
         route = APIWebSocketRoute(
             self.prefix + path,
@@ -584,18 +576,18 @@ class APIRouter(routing.Router):
         self.routes.append(route)
 
     def websocket(
-        self, path: str, name: Optional[str] = None,
-    ) -> Callable[[DecoratedCallable], DecoratedCallable]:
-        def decorator(func: DecoratedCallable) -> DecoratedCallable:
+        self, path: str, name: str | None = None,
+    ) -> Callable[[WebSocketEndpointCallable], WebSocketEndpointCallable]:
+        def decorator(func: WebSocketEndpointCallable) -> WebSocketEndpointCallable:
             self.add_api_websocket_route(path, func, name=name)
             return func
 
         return decorator
 
     def websocket_route(
-        self, path: str, name: Union[str, None] = None,
-    ) -> Callable[[DecoratedCallable], DecoratedCallable]:
-        def decorator(func: DecoratedCallable) -> DecoratedCallable:
+        self, path: str, name: str | None = None,
+    ) -> Callable[[WebSocketEndpointCallable], WebSocketEndpointCallable]:
+        def decorator(func: WebSocketEndpointCallable) -> WebSocketEndpointCallable:
             self.add_websocket_route(path, func, name=name)
             return func
 
@@ -606,12 +598,12 @@ class APIRouter(routing.Router):
         router: "APIRouter",
         *,
         prefix: str = "",
-        tags: Optional[List[Union[str, Enum]]] = None,
-        default_request_class: Type[Request] = Default(Request),
-        default_response_class: Type[Response] = Default(JSONResponse),
-        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
-        callbacks: Optional[List[BaseRoute]] = None,
-        deprecated: Optional[bool] = None,
+        tags: list[str | Enum] | None = None,
+        default_request_class: type[Request] = Default(Request),
+        default_response_class: type[Response] = Default(JSONResponse),
+        responses: dict[int | str, dict[str, Any]] | None = None,
+        callbacks: list[BaseRoute] | None = None,
+        deprecated: bool | None = None,
         include_in_schema: bool = True,
         generate_unique_id_function: Callable[[APIRoute], str] = Default(generate_unique_id),
     ) -> None:
@@ -723,29 +715,29 @@ class APIRouter(routing.Router):
         self,
         path: str,
         *,
-        name: str = None,
+        name: str | None = None,
         include_in_schema: bool = True,
-        status_code: Optional[int] = None,
+        status_code: int | None = None,
         middleware: Sequence[Middleware] | None = None,
-        deprecated: Optional[bool] = None,
-        request_class: Type[Request] = Default(Request),
-        response_model: Optional[Type[Any]] = None,
-        response_class: Type[Response] = JSONResponse,
+        deprecated: bool | None = None,
+        request_class: type[Request] = Default(Request),
+        response_model: type[Any] | None = None,
+        response_class: type[Response] = JSONResponse,
         # OpenAPI summary
-        summary: Optional[str] = None,
-        description: Optional[str] = None,
+        summary: str | None = None,
+        description: str | None = None,
         response_description: str = "Successful Response",
-        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
-        callbacks: Optional[List[BaseRoute]] = None,
+        responses: dict[int | str, dict[str, Any]] | None = None,
+        callbacks: list[BaseRoute] | None = None,
         # Sets the OpenAPI operationId to be used in your path operation
-        operation_id: Optional[str] = None,
+        operation_id: str | None = None,
         # If operation_id is None, this function will be used to create one.
         generate_unique_id_function: Callable[["APIRoute"], str] = Default(generate_unique_id),
         # OpenAPI tags
-        tags: Optional[List[Union[str, Enum]]] = None,
+        tags: list[str | Enum] | None = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
-        openapi_extra: Optional[Dict[str, Any]] = None,
-        route_class: Optional[Type[APIRoute]] = None,
+        openapi_extra: dict[str, Any] | None = None,
+        route_class: type[APIRoute] | None = None,
     ):
         return self.api_route(
             path,
@@ -774,29 +766,29 @@ class APIRouter(routing.Router):
         self,
         path: str,
         *,
-        name: str = None,
+        name: str | None = None,
         include_in_schema: bool = True,
-        status_code: Optional[int] = None,
+        status_code: int | None = None,
         middleware: Sequence[Middleware] | None = None,
-        deprecated: Optional[bool] = None,
-        request_class: Type[Request] = Default(Request),
-        response_model: Optional[Type[Any]] = None,
-        response_class: Type[Response] = JSONResponse,
+        deprecated: bool | None = None,
+        request_class: type[Request] = Default(Request),
+        response_model: type[Any] | None = None,
+        response_class: type[Response] = JSONResponse,
         # OpenAPI summary
-        summary: Optional[str] = None,
-        description: Optional[str] = None,
+        summary: str | None = None,
+        description: str | None = None,
         response_description: str = "Successful Response",
-        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
-        callbacks: Optional[List[BaseRoute]] = None,
+        responses: dict[int | str, dict[str, Any]] | None = None,
+        callbacks: list[BaseRoute] | None = None,
         # Sets the OpenAPI operationId to be used in your path operation
-        operation_id: Optional[str] = None,
+        operation_id: str | None = None,
         # If operation_id is None, this function will be used to create one.
         generate_unique_id_function: Callable[["APIRoute"], str] = Default(generate_unique_id),
         # OpenAPI tags
-        tags: Optional[List[Union[str, Enum]]] = None,
+        tags: list[str | Enum] | None = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
-        openapi_extra: Optional[Dict[str, Any]] = None,
-        route_class: Optional[Type[APIRoute]] = None,
+        openapi_extra: dict[str, Any] | None = None,
+        route_class: type[APIRoute] | None = None,
     ):
         return self.api_route(
             path,
@@ -825,29 +817,29 @@ class APIRouter(routing.Router):
         self,
         path: str,
         *,
-        name: str = None,
+        name: str | None = None,
         include_in_schema: bool = True,
-        status_code: Optional[int] = None,
+        status_code: int | None = None,
         middleware: Sequence[Middleware] | None = None,
-        deprecated: Optional[bool] = None,
-        request_class: Type[Request] = Default(Request),
-        response_model: Optional[Type[Any]] = None,
-        response_class: Type[Response] = JSONResponse,
+        deprecated: bool | None = None,
+        request_class: type[Request] = Default(Request),
+        response_model: type[Any] | None = None,
+        response_class: type[Response] = JSONResponse,
         # OpenAPI summary
-        summary: Optional[str] = None,
-        description: Optional[str] = None,
+        summary: str | None = None,
+        description: str | None = None,
         response_description: str = "Successful Response",
-        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
-        callbacks: Optional[List[BaseRoute]] = None,
+        responses: dict[int | str, dict[str, Any]] | None = None,
+        callbacks: list[BaseRoute] | None = None,
         # Sets the OpenAPI operationId to be used in your path operation
-        operation_id: Optional[str] = None,
+        operation_id: str | None = None,
         # If operation_id is None, this function will be used to create one.
         generate_unique_id_function: Callable[["APIRoute"], str] = Default(generate_unique_id),
         # OpenAPI tags
-        tags: Optional[List[Union[str, Enum]]] = None,
+        tags: list[str | Enum] | None = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
-        openapi_extra: Optional[Dict[str, Any]] = None,
-        route_class: Optional[Type[APIRoute]] = None,
+        openapi_extra: dict[str, Any] | None = None,
+        route_class: type[APIRoute] | None = None,
     ):
         return self.api_route(
             path,
@@ -876,29 +868,29 @@ class APIRouter(routing.Router):
         self,
         path: str,
         *,
-        name: str = None,
+        name: str | None = None,
         include_in_schema: bool = True,
-        status_code: Optional[int] = None,
+        status_code: int | None = None,
         middleware: Sequence[Middleware] | None = None,
-        deprecated: Optional[bool] = None,
-        request_class: Type[Request] = Default(Request),
-        response_model: Optional[Type[Any]] = None,
-        response_class: Type[Response] = JSONResponse,
+        deprecated: bool | None = None,
+        request_class: type[Request] = Default(Request),
+        response_model: type[Any] | None = None,
+        response_class: type[Response] = JSONResponse,
         # OpenAPI summary
-        summary: Optional[str] = None,
-        description: Optional[str] = None,
+        summary: str | None = None,
+        description: str | None = None,
         response_description: str = "Successful Response",
-        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
-        callbacks: Optional[List[BaseRoute]] = None,
+        responses: dict[int | str, dict[str, Any]] | None = None,
+        callbacks: list[BaseRoute] | None = None,
         # Sets the OpenAPI operationId to be used in your path operation
-        operation_id: Optional[str] = None,
+        operation_id: str | None = None,
         # If operation_id is None, this function will be used to create one.
         generate_unique_id_function: Callable[["APIRoute"], str] = Default(generate_unique_id),
         # OpenAPI tags
-        tags: Optional[List[Union[str, Enum]]] = None,
+        tags: list[str | Enum] | None = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
-        openapi_extra: Optional[Dict[str, Any]] = None,
-        route_class: Optional[Type[APIRoute]] = None,
+        openapi_extra: dict[str, Any] | None = None,
+        route_class: type[APIRoute] | None = None,
     ):
         return self.api_route(
             path,
@@ -927,29 +919,29 @@ class APIRouter(routing.Router):
         self,
         path: str,
         *,
-        name: str = None,
+        name: str | None = None,
         include_in_schema: bool = True,
-        status_code: Optional[int] = None,
+        status_code: int | None = None,
         middleware: Sequence[Middleware] | None = None,
-        deprecated: Optional[bool] = None,
-        request_class: Type[Request] = Default(Request),
-        response_model: Optional[Type[Any]] = None,
-        response_class: Type[Response] = JSONResponse,
+        deprecated: bool | None = None,
+        request_class: type[Request] = Default(Request),
+        response_model: type[Any] | None = None,
+        response_class: type[Response] = JSONResponse,
         # OpenAPI summary
-        summary: Optional[str] = None,
-        description: Optional[str] = None,
+        summary: str | None = None,
+        description: str | None = None,
         response_description: str = "Successful Response",
-        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
-        callbacks: Optional[List[BaseRoute]] = None,
+        responses: dict[int | str, dict[str, Any]] | None = None,
+        callbacks: list[BaseRoute] | None = None,
         # Sets the OpenAPI operationId to be used in your path operation
-        operation_id: Optional[str] = None,
+        operation_id: str | None = None,
         # If operation_id is None, this function will be used to create one.
         generate_unique_id_function: Callable[["APIRoute"], str] = Default(generate_unique_id),
         # OpenAPI tags
-        tags: Optional[List[Union[str, Enum]]] = None,
+        tags: list[str | Enum] | None = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
-        openapi_extra: Optional[Dict[str, Any]] = None,
-        route_class: Optional[Type[APIRoute]] = None,
+        openapi_extra: dict[str, Any] | None = None,
+        route_class: type[APIRoute] | None = None,
     ):
         return self.api_route(
             path,
@@ -978,29 +970,29 @@ class APIRouter(routing.Router):
         self,
         path: str,
         *,
-        name: str = None,
+        name: str | None = None,
         include_in_schema: bool = True,
-        status_code: Optional[int] = None,
+        status_code: int | None = None,
         middleware: Sequence[Middleware] | None = None,
-        deprecated: Optional[bool] = None,
-        request_class: Type[Request] = Default(Request),
-        response_model: Optional[Type[Any]] = None,
-        response_class: Type[Response] = JSONResponse,
+        deprecated: bool | None = None,
+        request_class: type[Request] = Default(Request),
+        response_model: type[Any] | None = None,
+        response_class: type[Response] = JSONResponse,
         # OpenAPI summary
-        summary: Optional[str] = None,
-        description: Optional[str] = None,
+        summary: str | None = None,
+        description: str | None = None,
         response_description: str = "Successful Response",
-        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
-        callbacks: Optional[List[BaseRoute]] = None,
+        responses: dict[int | str, dict[str, Any]] | None = None,
+        callbacks: list[BaseRoute] | None = None,
         # Sets the OpenAPI operationId to be used in your path operation
-        operation_id: Optional[str] = None,
+        operation_id: str | None = None,
         # If operation_id is None, this function will be used to create one.
         generate_unique_id_function: Callable[["APIRoute"], str] = Default(generate_unique_id),
         # OpenAPI tags
-        tags: Optional[List[Union[str, Enum]]] = None,
+        tags: list[str | Enum] | None = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
-        openapi_extra: Optional[Dict[str, Any]] = None,
-        route_class: Optional[Type[APIRoute]] = None,
+        openapi_extra: dict[str, Any] | None = None,
+        route_class: type[APIRoute] | None = None,
     ):
         return self.api_route(
             path,
@@ -1029,29 +1021,29 @@ class APIRouter(routing.Router):
         self,
         path: str,
         *,
-        name: str = None,
+        name: str | None = None,
         include_in_schema: bool = True,
-        status_code: Optional[int] = None,
+        status_code: int | None = None,
         middleware: Sequence[Middleware] | None = None,
-        deprecated: Optional[bool] = None,
-        request_class: Type[Request] = Default(Request),
-        response_model: Optional[Type[Any]] = None,
-        response_class: Type[Response] = JSONResponse,
+        deprecated: bool | None = None,
+        request_class: type[Request] = Default(Request),
+        response_model: type[Any] | None = None,
+        response_class: type[Response] = JSONResponse,
         # OpenAPI summary
-        summary: Optional[str] = None,
-        description: Optional[str] = None,
+        summary: str | None = None,
+        description: str | None = None,
         response_description: str = "Successful Response",
-        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
-        callbacks: Optional[List[BaseRoute]] = None,
+        responses: dict[int | str, dict[str, Any]] | None = None,
+        callbacks: list[BaseRoute] | None = None,
         # Sets the OpenAPI operationId to be used in your path operation
-        operation_id: Optional[str] = None,
+        operation_id: str | None = None,
         # If operation_id is None, this function will be used to create one.
         generate_unique_id_function: Callable[["APIRoute"], str] = Default(generate_unique_id),
         # OpenAPI tags
-        tags: Optional[List[Union[str, Enum]]] = None,
+        tags: list[str | Enum] | None = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
-        openapi_extra: Optional[Dict[str, Any]] = None,
-        route_class: Optional[Type[APIRoute]] = None,
+        openapi_extra: dict[str, Any] | None = None,
+        route_class: type[APIRoute] | None = None,
     ):
         return self.api_route(
             path,
@@ -1080,29 +1072,29 @@ class APIRouter(routing.Router):
         self,
         path: str,
         *,
-        name: str = None,
+        name: str | None = None,
         include_in_schema: bool = True,
-        status_code: Optional[int] = None,
+        status_code: int | None = None,
         middleware: Sequence[Middleware] | None = None,
-        deprecated: Optional[bool] = None,
-        request_class: Type[Request] = Default(Request),
-        response_model: Optional[Type[Any]] = None,
-        response_class: Type[Response] = JSONResponse,
+        deprecated: bool | None = None,
+        request_class: type[Request] = Default(Request),
+        response_model: type[Any] | None = None,
+        response_class: type[Response] = JSONResponse,
         # OpenAPI summary
-        summary: Optional[str] = None,
-        description: Optional[str] = None,
+        summary: str | None = None,
+        description: str | None = None,
         response_description: str = "Successful Response",
-        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
-        callbacks: Optional[List[BaseRoute]] = None,
+        responses: dict[int | str, dict[str, Any]] | None = None,
+        callbacks: list[BaseRoute] | None = None,
         # Sets the OpenAPI operationId to be used in your path operation
-        operation_id: Optional[str] = None,
+        operation_id: str | None = None,
         # If operation_id is None, this function will be used to create one.
         generate_unique_id_function: Callable[["APIRoute"], str] = Default(generate_unique_id),
         # OpenAPI tags
-        tags: Optional[List[Union[str, Enum]]] = None,
+        tags: list[str | Enum] | None = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
-        openapi_extra: Optional[Dict[str, Any]] = None,
-        route_class: Optional[Type[APIRoute]] = None,
+        openapi_extra: dict[str, Any] | None = None,
+        route_class: type[APIRoute] | None = None,
     ):
         return self.api_route(
             path,

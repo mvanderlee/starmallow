@@ -13,7 +13,7 @@ class APIWebSocket(WebSocket):
     async def receive_json(
         self,
         mode: str = "text",
-        model: ma.Schema = None,
+        model: ma.Schema | type[ma.Schema] | None = None,
     ) -> Any:
         if mode not in {"text", "binary"}:
             raise RuntimeError('The "mode" argument should be "text" or "binary".')
@@ -24,10 +24,7 @@ class APIWebSocket(WebSocket):
         message = await self.receive()
         self._raise_on_disconnect(message)
 
-        if mode == "text":
-            text = message["text"]
-        else:
-            text = message["bytes"].decode("utf-8")
+        text = message["text"] if mode == "text" else message["bytes"].decode("utf-8")
 
         if model:
             if isinstance(model, ma.Schema):
@@ -44,7 +41,7 @@ class APIWebSocket(WebSocket):
         self,
         data: Any,
         mode: str = "text",
-        model: ma.Schema = None,
+        model: ma.Schema | type[ma.Schema] | None = None,
     ) -> None:
         if mode not in {"text", "binary"}:
             raise RuntimeError('The "mode" argument should be "text" or "binary".')

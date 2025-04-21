@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import ClassVar
 
 from marshmallow_dataclass2 import dataclass as ma_dataclass
 from starlette.exceptions import HTTPException
@@ -11,7 +11,7 @@ from starmallow.security.base import SecurityBase, SecurityBaseResolver, Securit
 
 @ma_dataclass(frozen=True)
 class OpenIdConnectModel(SecurityBase):
-    type: SecurityTypes = SecurityTypes.openIdConnect
+    type: ClassVar[SecurityTypes] = SecurityTypes.openIdConnect
     openIdConnectUrl: str = required_field()
 
 
@@ -19,9 +19,9 @@ class OpenIdConnect(SecurityBaseResolver):
     def __init__(
         self,
         *,
-        openIdConnectUrl: str,
-        scheme_name: Optional[str] = None,
-        description: Optional[str] = None,
+        openIdConnectUrl: str,  # noqa: N803
+        scheme_name: str | None = None,
+        description: str | None = None,
         auto_error: bool = True,
     ):
         self.model = OpenIdConnectModel(
@@ -30,7 +30,7 @@ class OpenIdConnect(SecurityBaseResolver):
         self.scheme_name = scheme_name or self.__class__.__name__
         self.auto_error = auto_error
 
-    async def __call__(self, request: Request) -> Optional[str]:
+    async def __call__(self, request: Request) -> str | None:
         authorization = request.headers.get("Authorization")
         if not authorization:
             if self.auto_error:

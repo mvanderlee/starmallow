@@ -1,4 +1,4 @@
-## Copied from webargs, but allows for None values.
+# Copied from webargs, but allows for None values.
 
 """Field classes.
 
@@ -15,9 +15,29 @@ tells webargs where to parse the request argument from.
         "content_type": fields.Str(data_key="Content-Type", location="headers"),
     }
 """
-from typing import Union
+import sys
+from typing import Any, ClassVar, Generic, Protocol, TypeVar
 
 import marshmallow as ma
+
+if sys.version_info >= (3, 11):
+    from typing import TypeVarTuple
+else:
+    # Python 3.10 and below
+    from typing_extensions import TypeVarTuple
+
+from .generics import get_orig_class
+
+T = TypeVar('T', bound=ma.fields.Field | type[ma.fields.Field])
+Ts = TypeVarTuple('Ts')  # Bound is not supported, bound=ma.fields.Field | type[ma.fields.Field]
+
+
+class _SupportListOrTupleField(Protocol):
+    delimiter: str
+
+    def _serialize(self, value: Any, attr: str | None, obj: Any, **kwargs) -> list | tuple: ...
+    def _deserialize(self, value, attr: str | None, data, **kwargs): ...
+    def make_error(self, key: str, **kwargs) -> ma.ValidationError: ...
 
 
 class DelimitedFieldMixin:
@@ -38,24 +58,26 @@ class DelimitedFieldMixin:
     # delimited fields set is_multiple=False for webargs.core.is_multiple
     is_multiple: bool = False
 
-    def _serialize(self, value, attr, obj, **kwargs):
+    def _serialize(self: _SupportListOrTupleField, value: Any, attr: str | None, obj: Any, **kwargs):
         # serializing will start with parent-class serialization, so that we correctly
         # output lists of non-primitive types, e.g. DelimitedList(DateTime)
         if value is not None:
             return self.delimiter.join(
-                format(each) for each in super()._serialize(value, attr, obj, **kwargs)
+                format(each) if each is not None else ''
+                for each in super()._serialize(value, attr, obj, **kwargs)
             )
 
-    def _deserialize(self, value, attr, data, **kwargs):
+    def _deserialize(self: _SupportListOrTupleField, value, attr: str | None, data, **kwargs):
         if value is not None:
             # attempting to deserialize from a non-string source is an error
-            if not isinstance(value, (str, bytes)):
+            if not isinstance(value, str):
                 raise self.make_error("invalid")
+
             values = value.split(self.delimiter) if value else []
             return super()._deserialize(values, attr, data, **kwargs)
 
 
-class DelimitedList(DelimitedFieldMixin, ma.fields.List):
+class DelimitedList(DelimitedFieldMixin, ma.fields.List, Generic[T]):  # type: ignore
     """A field which is similar to a List, but takes its input as a delimited
     string (e.g. "foo,bar,baz").
 
@@ -66,20 +88,20 @@ class DelimitedList(DelimitedFieldMixin, ma.fields.List):
     :param str delimiter: Delimiter between values.
     """
 
-    default_error_messages = {"invalid": "Not a valid delimited list."}
+    default_error_messages: ClassVar[dict[str, str]] = {"invalid": "Not a valid delimited list."}
 
     def __init__(
         self,
-        cls_or_instance: Union[ma.fields.Field, type],
         *,
-        delimiter: Union[str, None] = None,
+        delimiter: str | None = None,
         **kwargs,
     ):
+        cls_or_instance = get_orig_class(self).__args__[0]
         self.delimiter = delimiter or self.delimiter
         super().__init__(cls_or_instance, **kwargs)
 
 
-class DelimitedTuple(DelimitedFieldMixin, ma.fields.Tuple):
+class DelimitedTuple(DelimitedFieldMixin, ma.fields.Tuple, Generic[Ts]):  # type: ignore
     """A field which is similar to a Tuple, but takes its input as a delimited
     string (e.g. "foo,bar,baz").
 
@@ -90,14 +112,14 @@ class DelimitedTuple(DelimitedFieldMixin, ma.fields.Tuple):
     :param str delimiter: Delimiter between values.
     """
 
-    default_error_messages = {"invalid": "Not a valid delimited tuple."}
+    default_error_messages: ClassVar[dict[str, str]] = {"invalid": "Not a valid delimited tuple."}
 
     def __init__(
         self,
-        tuple_fields,
         *,
-        delimiter: Union[str, None] = None,
+        delimiter: str | None = None,
         **kwargs,
     ):
+        cls_or_instances = get_orig_class(self).__args__
         self.delimiter = delimiter or self.delimiter
-        super().__init__(tuple_fields, **kwargs)
+        super().__init__(cls_or_instances, **kwargs)

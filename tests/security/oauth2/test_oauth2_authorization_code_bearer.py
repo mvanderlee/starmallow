@@ -1,5 +1,3 @@
-from typing import Optional
-
 from starlette.testclient import TestClient
 
 from starmallow import StarMallow
@@ -16,7 +14,7 @@ oauth2_scheme = OAuth2AuthorizationCodeBearer(
 
 
 @app.get("/items/")
-async def read_items(token: Optional[str] = Security(oauth2_scheme)):
+async def read_items(token: str | None = Security(oauth2_scheme)):
     return {"token": token}
 
 

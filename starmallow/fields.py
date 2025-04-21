@@ -7,19 +7,19 @@ import marshmallow.fields as mf
 from .delimited_field import DelimitedFieldMixin
 
 
-class DelimitedListUUID(DelimitedFieldMixin, mf.List):
+class DelimitedListUUID(DelimitedFieldMixin, mf.List): # type: ignore
     def __init__(self, *, delimiter: str | None = None, **kwargs):
         self.delimiter = delimiter or self.delimiter
         super().__init__(mf.UUID(), **kwargs)
 
 
-class DelimitedListStr(DelimitedFieldMixin, mf.List):
+class DelimitedListStr(DelimitedFieldMixin, mf.List): # type: ignore
     def __init__(self, *, delimiter: str | None = None, **kwargs):
         self.delimiter = delimiter or self.delimiter
         super().__init__(mf.String(), **kwargs)
 
 
-class DelimitedListInt(DelimitedFieldMixin, mf.List):
+class DelimitedListInt(DelimitedFieldMixin, mf.List): # type: ignore
     def __init__(self, *, delimiter: str | None = None, **kwargs):
         self.delimiter = delimiter or self.delimiter
         super().__init__(mf.Integer(), **kwargs)

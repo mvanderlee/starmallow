@@ -2301,13 +2301,12 @@ openapi_schema = {
 
 
 @pytest.mark.parametrize(
-    "path,expected_status,expected_response",
+    ("path", "expected_status", "expected_response"),
     [
         ("/api_route", 200, {"message": "Hello World"}),
         ("/path/union/500.0", 200, 500.0),
         ("/path/union/200", 200, 200),
         ("/path/union/true", 200, True),
-        ("/api_route", 200, {"message": "Hello World"}),
         ("/nonexistent", 404, {"detail": "Not Found"}),
         ("/openapi.json", 200, openapi_schema),
     ],

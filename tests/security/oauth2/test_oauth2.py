@@ -211,7 +211,7 @@ grant_type_incorrect = {
 
 
 @pytest.mark.parametrize(
-    "data,expected_status,expected_response",
+    ('data', 'expected_status', 'expected_response'),
     [
         (None, 422, required_params),
         ({"username": "johndoe", "password": "secret"}, 422, grant_type_required),

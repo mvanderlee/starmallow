@@ -1,5 +1,3 @@
-from typing import Optional
-
 import pytest
 from marshmallow_dataclass2 import dataclass as ma_dataclass
 from starlette.testclient import TestClient
@@ -28,7 +26,7 @@ class User:
     username: str
 
 
-def get_current_user(oauth_header: Optional[str] = Security(reusable_oauth2)):
+def get_current_user(oauth_header: str | None = Security(reusable_oauth2)):
     if oauth_header is None:
         return None
     user = User(username=oauth_header)
@@ -41,7 +39,7 @@ def login(form_data: OAuth2PasswordRequestFormStrict = ResolvedParam()):
 
 
 @app.get("/users/me")
-def read_users_me(current_user: Optional[User] = ResolvedParam(get_current_user)):
+def read_users_me(current_user: User | None = ResolvedParam(get_current_user)):
     if current_user is None:
         return {"msg": "Create an account first"}
     return current_user
@@ -215,7 +213,7 @@ grant_type_incorrect = {
 
 
 @pytest.mark.parametrize(
-    "data,expected_status,expected_response",
+    ("data", "expected_status", "expected_response"),
     [
         (None, 422, required_params),
         ({"username": "johndoe", "password": "secret"}, 422, grant_type_required),

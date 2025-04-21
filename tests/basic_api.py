@@ -2,7 +2,7 @@ import datetime as dt
 import http
 from decimal import Decimal
 from enum import Enum
-from typing import Final, FrozenSet, Literal, Optional, Union
+from typing import Final, Literal
 from uuid import UUID
 
 from marshmallow.validate import Length, Range, Regexp
@@ -14,8 +14,8 @@ app = StarMallow()
 
 
 class MyEnum(Enum):
-    optionA = 'optionA'
-    optionB = 'optionB'
+    optionA = 'optionA'  # noqa: N815
+    optionB = 'optionB'  # noqa: N815
 
 
 @app.api_route("/api_route")
@@ -360,7 +360,7 @@ def get_query_optional(query=None):
 
 
 @app.get("/query/optional_annotated")
-def get_query_optional_annotated(query: Optional[str] = None):
+def get_query_optional_annotated(query: str | None = None):
     if query is None:
         return "foo bar"
     return f"foo bar {query}"
@@ -372,7 +372,7 @@ def get_query_optional_piped(query: str | None = None):
     return f"foo bar {query}"
 
 @app.get("/query/optional_unioned")
-def get_query_optional_unioned(query: Union[str, None] = None):
+def get_query_optional_unioned(query: str | None = None):
     if query is None:
         return "foo bar"
     return f"foo bar {query}"
@@ -383,7 +383,7 @@ def get_query_type(query: int):
 
 
 @app.get("/query/int/optional")
-def get_query_type_optional(query: Optional[int] = None):
+def get_query_type_optional(query: int | None = None):
     if query is None:
         return "foo bar"
     return f"foo bar {query}"
@@ -417,5 +417,5 @@ def get_enum_status_code():
 
 
 @app.get("/query/frozenset")
-def get_query_type_frozenset(query: FrozenSet[int] = Query(...)):
+def get_query_type_frozenset(query: frozenset[int] = Query(...)):
     return ",".join(map(str, sorted(query)))

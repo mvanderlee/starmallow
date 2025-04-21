@@ -22,7 +22,7 @@ class DefaultPlaceholder:
 DefaultType = TypeVar("DefaultType")
 
 
-def Default(value: DefaultType) -> DefaultType:
+def Default(value: DefaultType) -> DefaultType:  # noqa: N802
     """
     You shouldn't use this function directly.
 

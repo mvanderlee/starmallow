@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import ClassVar, Optional
+from typing import ClassVar
 
 from marshmallow_dataclass2 import dataclass as ma_dataclass
 from starlette.requests import Request
@@ -28,15 +28,15 @@ class APIKeyQuery(SecurityBaseResolver):
         self,
         *,
         name: str,
-        scheme_name: Optional[str] = None,
-        description: Optional[str] = None,
+        scheme_name: str | None = None,
+        description: str | None = None,
         auto_error: bool = True,
     ):
         self.model: APIKeyModel = APIKeyModel(in_=APIKeyIn.query, name=name, description=description)
         self.scheme_name = scheme_name or self.__class__.__name__
         self.auto_error = auto_error
 
-    async def __call__(self, request: Request) -> Optional[str]:
+    async def __call__(self, request: Request) -> str | None:
         api_key = request.query_params.get(self.model.name)
         if not api_key:
             if self.auto_error:
@@ -53,15 +53,15 @@ class APIKeyHeader(SecurityBaseResolver):
         self,
         *,
         name: str,
-        scheme_name: Optional[str] = None,
-        description: Optional[str] = None,
+        scheme_name: str | None = None,
+        description: str | None = None,
         auto_error: bool = True,
     ):
         self.model: APIKeyModel = APIKeyModel(in_=APIKeyIn.header, name=name, description=description)
         self.scheme_name = scheme_name or self.__class__.__name__
         self.auto_error = auto_error
 
-    async def __call__(self, request: Request) -> Optional[str]:
+    async def __call__(self, request: Request) -> str | None:
         api_key = request.headers.get(self.model.name)
         if not api_key:
             if self.auto_error:
@@ -78,15 +78,15 @@ class APIKeyCookie(SecurityBaseResolver):
         self,
         *,
         name: str,
-        scheme_name: Optional[str] = None,
-        description: Optional[str] = None,
+        scheme_name: str | None = None,
+        description: str | None = None,
         auto_error: bool = True,
     ):
         self.model: APIKeyModel = APIKeyModel(in_=APIKeyIn.cookie, name=name, description=description)
         self.scheme_name = scheme_name or self.__class__.__name__
         self.auto_error = auto_error
 
-    async def __call__(self, request: Request) -> Optional[str]:
+    async def __call__(self, request: Request) -> str | None:
         api_key = request.cookies.get(self.model.name)
         if not api_key:
             if self.auto_error:

@@ -2,7 +2,7 @@
     Tests various permutations of accepting input. i.e.: Path, Query, Body, etc
 '''
 
-from typing import Any, Dict, Literal, Optional, Union
+from typing import Any, Literal
 
 import marshmallow as ma
 import marshmallow.fields as mf
@@ -131,7 +131,7 @@ def get_path_model_ma_schema_id(path_params=Path(model=PathParamsSchema)):
 
 # Test with marshmallow schema as model to override the annotation
 @app.get("/path/model_override/{item_id}")
-def get_path_override_ma_schema_id(path_params: Dict[Any, Any] = Path(model=PathParamsSchema)):
+def get_path_override_ma_schema_id(path_params: dict[Any, Any] = Path(model=PathParamsSchema)):
     return path_params['item_id']
 
 
@@ -182,9 +182,9 @@ def post_multi_combo(
     weight_unit: Literal['lbs', 'kg'] = Query(title='Weight'),
     color: str = Header('blue'),
     # Tests convert_underscores
-    user_agent: Optional[str] = Header(None),
+    user_agent: str | None = Header(None),
     # Tests aliasing
-    aliased_header: Optional[str] = Header(None, alias="myalias"),
+    aliased_header: str | None = Header(None, alias="myalias"),
 ):
     return {
         'item_id': item_id,
@@ -209,12 +209,12 @@ def post_multi_combo_optional(
     path_params: MultiPathParams = Path(),
     query_params: MultiQueryParams | None = Query(),
     body_params: MultiBodyParams | None = Body(),
-    weight_unit: Optional[Literal['lbs', 'kg']] = Query(title='Weight'),
-    color: Union[str, None] = Header('blue'),
+    weight_unit: Literal['lbs', 'kg'] | None = Query(title='Weight'),
+    color: str | None = Header('blue'),
     # Tests convert_underscores
-    user_agent: Optional[str] = Header(None),
+    user_agent: str | None = Header(None),
     # Tests aliasing
-    aliased_header: Optional[str] = Header(None, alias="myalias"),
+    aliased_header: str | None = Header(None, alias="myalias"),
 ):
     return {
         'item_id': item_id,
@@ -892,7 +892,7 @@ openapi_schema = {
                         'required': False,
                         'schema': {
                             "default": None,
-                            'enum': ['lbs', 'kg'],
+                            'enum': ['lbs', 'kg', None],
                             "nullable": True,
                             'title': 'Weight',
                         },
@@ -1037,7 +1037,7 @@ openapi_schema = {
 
 
 @pytest.mark.parametrize(
-    "path,expected_status,expected_response",
+    ("path", "expected_status", "expected_response"),
     [
         ("/path/5", 200, '5'),
         ("/path_with_request/5", 200, True),
@@ -1062,7 +1062,7 @@ def test_get_path(path, expected_status, expected_response):
 
 
 @pytest.mark.parametrize(
-    "path,headers,body,expected_status,expected_response",
+    ("path", "headers", "body", "expected_status", "expected_response"),
     [
         (
             "/multi_flat/5/3?name=foobar",
@@ -1139,7 +1139,7 @@ def test_post_path(path, headers, body, expected_status, expected_response):
 
 
 @pytest.mark.parametrize(
-    "path,headers,body,expected_status,expected_response",
+    ("path", "headers", "body", "expected_status", "expected_response"),
     [
         (
             "/multi_flat/alpha/beta?name=foobar",

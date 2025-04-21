@@ -1,20 +1,24 @@
 import uuid
-from typing import Any, Callable, List, TypeVar, Union
+from collections.abc import Awaitable, Callable
+from typing import Annotated, Any, TypeVar
 
 import marshmallow.fields as mf
-from marshmallow_dataclass2 import NewType
+from starlette.websockets import WebSocket
 
 import starmallow.fields as sf
+from starmallow.delimited_field import DelimitedList
 from starmallow.endpoints import APIHTTPEndpoint
 
-DecoratedCallable = TypeVar("DecoratedCallable", bound=Union[Callable[..., Any], APIHTTPEndpoint])
+EndpointCallable = Callable[[], Awaitable[Any] | Any] | Callable[[...], Awaitable[Any] | Any]
+WebSocketEndpointCallable = Callable[[WebSocket], Awaitable[None]]
+DecoratedCallable = TypeVar("DecoratedCallable", bound=EndpointCallable | type[APIHTTPEndpoint])
 
-UUID = NewType('UUID', uuid.UUID, field=mf.UUID)
-DelimitedListUUID = NewType('DelimitedListUUID', List[uuid.UUID], field=sf.DelimitedListUUID)
-DelimitedListStr = NewType('DelimitedListStr', List[str], field=sf.DelimitedListStr)
-DelimitedListInt = NewType('DelimitedListInt', List[int], field=sf.DelimitedListInt)
+UUID = Annotated[uuid.UUID, mf.UUID]
+DelimitedListUUID = Annotated[list[uuid.UUID], DelimitedList[mf.UUID]]
+DelimitedListStr = Annotated[list[str], DelimitedList[mf.String]]
+DelimitedListInt = Annotated[list[int], DelimitedList[mf.Integer]]
 
-HttpUrl = NewType("HttpUrl", str, field=sf.HttpUrl)
+HttpUrl = Annotated[str, sf.HttpUrl]
 
 # Aliases
 UUIDType = UUID

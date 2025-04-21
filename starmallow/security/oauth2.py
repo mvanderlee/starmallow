@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Union
+from typing import Annotated, Any, ClassVar
 
 import marshmallow as ma
 from marshmallow_dataclass2 import dataclass as ma_dataclass
@@ -15,14 +15,14 @@ from starmallow.security.utils import get_authorization_scheme_param
 # region - Models
 @ma_dataclass(frozen=True)
 class OAuthFlow:
-    refreshUrl: Optional[str] = optional_field()
-    scopes: Dict[str, str] = optional_field(default_factory=dict)
+    refreshUrl: str | None = optional_field()
+    scopes: dict[str, str] = optional_field(default_factory=dict)
 
     class Meta:
         unknown = ma.INCLUDE
 
     @ma.post_dump()
-    def post_dump(self, data: Dict[str, Any], **kwargs):
+    def post_dump(self, data: dict[str, Any], **kwargs):
         # Remove None values
         return {
             key: value
@@ -54,16 +54,16 @@ class OAuthFlowAuthorizationCode(OAuthFlow):
 
 @ma_dataclass(frozen=True)
 class OAuthFlowsModel:
-    implicit: Optional[OAuthFlowImplicit] = optional_field()
-    password: Optional[OAuthFlowPassword] = optional_field()
-    clientCredentials: Optional[OAuthFlowClientCredentials] = optional_field()
-    authorizationCode: Optional[OAuthFlowAuthorizationCode] = optional_field()
+    implicit: OAuthFlowImplicit | None = optional_field()
+    password: OAuthFlowPassword | None = optional_field()
+    clientCredentials: OAuthFlowClientCredentials | None = optional_field()
+    authorizationCode: OAuthFlowAuthorizationCode | None = optional_field()
 
     class Meta:
         unknown = ma.INCLUDE
 
     @ma.post_dump()
-    def post_dump(self, data: Dict[str, Any], **kwargs):
+    def post_dump(self, data: dict[str, Any], **kwargs):
         # Remove None values
         return {
             key: value
@@ -74,7 +74,7 @@ class OAuthFlowsModel:
 
 @ma_dataclass(frozen=True)
 class OAuth2Model(SecurityBase):
-    type: SecurityTypes = SecurityTypes.oauth2
+    type: ClassVar[SecurityTypes] = SecurityTypes.oauth2
     flows: OAuthFlowsModel = required_field()
 # endregion
 
@@ -114,12 +114,12 @@ class OAuth2PasswordRequestForm:
 
     def __init__(
         self,
-        grant_type: str = Form(default=None, regex="password"),
-        username: str = Form(),
-        password: str = Form(),
-        scope: str = Form(default=""),
-        client_id: Optional[str] = Form(default=None),
-        client_secret: Optional[str] = Form(default=None),
+        grant_type: Annotated[str, Form(default=None, regex="password")],
+        username: Annotated[str, Form()],
+        password: Annotated[str, Form()],
+        scope: Annotated[str, Form(default="")],
+        client_id: Annotated[str | None, Form(default=None)],
+        client_secret: Annotated[str | None, Form(default=None)],
     ):
         self.grant_type = grant_type
         self.username = username
@@ -164,12 +164,12 @@ class OAuth2PasswordRequestFormStrict(OAuth2PasswordRequestForm):
 
     def __init__(
         self,
-        grant_type: str = Form(regex="password"),
-        username: str = Form(),
-        password: str = Form(),
-        scope: str = Form(default=""),
-        client_id: Optional[str] = Form(default=None),
-        client_secret: Optional[str] = Form(default=None),
+        grant_type: Annotated[str, Form(regex="password")],
+        username: Annotated[str, Form()],
+        password: Annotated[str, Form()],
+        scope: Annotated[str, Form(default="")],
+        client_id: Annotated[str | None, Form(default=None)],
+        client_secret:Annotated[str | None, Form(default=None)],
     ):
         super().__init__(
             grant_type=grant_type,
@@ -185,16 +185,16 @@ class OAuth2(SecurityBaseResolver):
     def __init__(
         self,
         *,
-        flows: Union[OAuthFlowsModel, Dict[str, Dict[str, Any]]] = OAuthFlowsModel(),
-        scheme_name: Optional[str] = None,
-        description: Optional[str] = None,
+        flows: OAuthFlowsModel | None = None,
+        scheme_name: str | None = None,
+        description: str | None = None,
         auto_error: bool = True,
     ):
-        self.model = OAuth2Model(flows=flows, description=description)
+        self.model = OAuth2Model(flows=flows or OAuthFlowsModel(), description=description)
         self.scheme_name = scheme_name or self.__class__.__name__
         self.auto_error = auto_error
 
-    async def __call__(self, request: Request) -> Optional[str]:
+    async def __call__(self, request: Request) -> str | None:
         authorization = request.headers.get("Authorization")
         if not authorization:
             if self.auto_error:
@@ -209,15 +209,15 @@ class OAuth2(SecurityBaseResolver):
 class OAuth2PasswordBearer(OAuth2):
     def __init__(
         self,
-        tokenUrl: str,
-        scheme_name: Optional[str] = None,
-        scopes: Optional[Dict[str, str]] = None,
-        description: Optional[str] = None,
+        tokenUrl: str, # noqa: N803
+        scheme_name: str | None = None,
+        scopes: dict[str, str] | None = None,
+        description: str | None = None,
         auto_error: bool = True,
     ):
         if not scopes:
             scopes = {}
-        flows = OAuthFlowsModel(password={"tokenUrl": tokenUrl, "scopes": scopes})
+        flows = OAuthFlowsModel(password=OAuthFlowPassword(tokenUrl=tokenUrl, scopes=scopes))
         super().__init__(
             flows=flows,
             scheme_name=scheme_name,
@@ -225,7 +225,7 @@ class OAuth2PasswordBearer(OAuth2):
             auto_error=auto_error,
         )
 
-    async def __call__(self, request: Request) -> Optional[str]:
+    async def __call__(self, request: Request) -> str | None:
         authorization = request.headers.get("Authorization")
         scheme, param = get_authorization_scheme_param(authorization)
         if not authorization or scheme.lower() != "bearer":
@@ -243,23 +243,23 @@ class OAuth2PasswordBearer(OAuth2):
 class OAuth2AuthorizationCodeBearer(OAuth2):
     def __init__(
         self,
-        authorizationUrl: str,
-        tokenUrl: str,
-        refreshUrl: Optional[str] = None,
-        scheme_name: Optional[str] = None,
-        scopes: Optional[Dict[str, str]] = None,
-        description: Optional[str] = None,
+        authorizationUrl: str, # noqa: N803
+        tokenUrl: str, # noqa: N803
+        refresh_url: str | None = None,
+        scheme_name: str | None = None,
+        scopes: dict[str, str] | None = None,
+        description: str | None = None,
         auto_error: bool = True,
     ):
         if not scopes:
             scopes = {}
         flows = OAuthFlowsModel(
-            authorizationCode={
-                "authorizationUrl": authorizationUrl,
-                "tokenUrl": tokenUrl,
-                "refreshUrl": refreshUrl,
-                "scopes": scopes,
-            },
+            authorizationCode=OAuthFlowAuthorizationCode(
+                authorizationUrl=authorizationUrl,
+                tokenUrl=tokenUrl,
+                refreshUrl=refresh_url,
+                scopes=scopes,
+            ),
         )
         super().__init__(
             flows=flows,
@@ -268,7 +268,7 @@ class OAuth2AuthorizationCodeBearer(OAuth2):
             auto_error=auto_error,
         )
 
-    async def __call__(self, request: Request) -> Optional[str]:
+    async def __call__(self, request: Request) -> str | None:
         authorization = request.headers.get("Authorization")
         scheme, param = get_authorization_scheme_param(authorization)
         if not authorization or scheme.lower() != "bearer":
@@ -284,6 +284,6 @@ class OAuth2AuthorizationCodeBearer(OAuth2):
 
 
 class SecurityScopes:
-    def __init__(self, scopes: Optional[List[str]] = None):
+    def __init__(self, scopes: list[str] | None = None):
         self.scopes = scopes or []
         self.scope_str = " ".join(self.scopes)

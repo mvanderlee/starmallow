@@ -268,7 +268,7 @@ openapi_schema = {
 
 
 @pytest.mark.parametrize(
-    "path,expected_status,expected_response",
+    ("path", "expected_status", "expected_response"),
     [
         ("/api_route", 200, {"message": "Get World"}),
         ("/path/str/foobar", 200, 'foobar'),
@@ -282,7 +282,7 @@ def test_get_path(path, expected_status, expected_response):
 
 
 @pytest.mark.parametrize(
-    "fn,expected_response",
+    ("fn", "expected_response"),
     [
         (client.get, {"message": "Get World"}),
         (client.post, {"message": "Post World"}),

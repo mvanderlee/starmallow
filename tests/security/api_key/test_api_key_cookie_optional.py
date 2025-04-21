@@ -1,5 +1,3 @@
-from typing import Optional
-
 from marshmallow_dataclass2 import dataclass as ma_dataclass
 from starlette.testclient import TestClient
 
@@ -19,7 +17,7 @@ class User:
     username: str
 
 
-def get_current_user(oauth_header: Optional[str] = Security(api_key)):
+def get_current_user(oauth_header: str | None = Security(api_key)):
     if oauth_header is None:
         return None
     user = User(username=oauth_header)

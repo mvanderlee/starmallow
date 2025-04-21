@@ -31,17 +31,19 @@ classifiers = [
     "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
     "Topic :: Internet :: WWW/HTTP",
 ]
 dependencies = [
   "apispec[marshmallow] >=6,<7",
   "dpath >=2.1.0,<3",
-  "marshmallow >=3.18.0,<4",
+  "marshmallow >=3.18.0",
   "marshmallow-dataclass2 >=8.8.1,<9",
-  "python-multipart >=0.0.5,<0.0.7",
+  "python-multipart >=0.0.20",
   "pyyaml >=5.4.1",
-  "starlette >=0.35,<1",
+  "starlette >=0.46",
 ]
 dynamic = ["version"]
 
@@ -58,16 +60,14 @@ all = [
 test = [
   "coverage[toml] >= 6.5.0,< 8.0",
   "httpx >=0.22.0",
-  "isort >=5.0.6,<6.0.0",
   "mypy>=1.1.1,<2",
-  "pytest >=7.1.3,<8.0.0",
-  "ruff ==0.0.260",
+  "pytest >=8",
+  "ruff ==0.11.6",
 ]
 dev = [
-  "isort >=5.0.6,<6.0.0",
-  "ruff ==0.0.260",
-  "uvicorn[standard] >=0.17.0,<0.22.0",
-  "pre-commit >=3.2.0,<4",
+  "ruff ==0.11.6",
+  "uvicorn[standard] >=0.34",
+  "pre-commit >=4",
 ]
 publish = [
   "hatch >= 1.7.0",
@@ -88,21 +88,63 @@ source = [
 ]
 
 [tool.ruff]
+exclude = [
+    "*.ipynb",
+    "examples/**/*.py",
+]
 select = [
-  "E",  # pycodestyle errors
-  "W",  # pycodestyle warnings
-  "F",  # pyflakes
-  # "I",  # isort
-  "C",  # flake8-comprehensions
-  "B",  # flake8-bugbear
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "C",  # flake8-comprehensions
+    "B",  # flake8-bugbear
+    "A",  # flake8-builtins
+    "N",  # pep8-naming
+    "UP",  # pyupgrade
+    "S",  # flake8-bandit
+    "COM",  # flake8-commas
+    "ISC",  # flake8-implicit-str-concat
+    "INP",  # flake8-no-pep420
+    "PIE",  # flake8-pie
+    "SIM",  # flake8-simplify
+    "RUF",  # Ruff-specific rules
+    "T20",  # flake8-print
+    "PT",  # flake8-pytest-style
 ]
 ignore = [
-  "B008",  # do not perform function calls in argument defaults
-  "B028",  # No explicit stacklevel argument found.
-  "C901",  # too complex
+    "B008",  # do not perform function calls in argument defaults
+    "B028",  # No explicit stacklevel argument found.
+    "C901",  # too complex
+
+    "N818",  # error-suffix-on-exception-name
+    "S101",  # Use assert instead of if
 ]
 line-length = 130  # Enforce 130. But ~100 is recommended.
 
+[tool.ruff.lint.pycodestyle]
+max-line-length = 150  # E501 reports lines that exceed the length of 150.
 
 [tool.ruff.per-file-ignores]
 "__init__.py" = ["F401"]
+"starmallow/security/*.py" = ["N815"]
+
+[tool.ruff.lint.flake8-bugbear]
+# Allow default arguments like, e.g., `data: List[str] = fastapi.Query(None)`.
+extend-immutable-calls = [
+    "starmallow.dataclasses.required_field",
+    "starmallow.dataclasses.optional_field",
+    "starmallow.dataclasses.dump_only_field",
+]
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+
+exclude = [
+    "examples/**/*.py",
+    "tests/**/*.py",
+]
+
+pythonVersion = "3.10"
+reportInvalidTypeForm = false

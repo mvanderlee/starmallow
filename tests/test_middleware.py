@@ -12,7 +12,7 @@ class TestMiddleware:
         self.app = app
         self.headers = kwargs
 
-    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:  # noqa
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         self.send = send
         await self.app(scope, receive, self.send_with_headers)
 
@@ -77,7 +77,7 @@ client = TestClient(app)
 
 
 @pytest.mark.parametrize(
-    "path,expected_status,expected_headers",
+    ("path", "expected_status", "expected_headers"),
     [
         ("/", 200, {'test_app_header': 'app_value'}),
         ("/route", 200, {'test_app_header': 'app_value', 'test_app_route_header': 'app_route_value'}),

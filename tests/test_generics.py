@@ -136,7 +136,7 @@ openapi_schema = {
 
 
 @pytest.mark.parametrize(
-    "path,expected_status,expected_response",
+    ("path", "expected_status", "expected_response"),
     [
         ("/data?id=50", 200, {"items": ["foo", "bar"]}),
         ("/openapi.json", 200, openapi_schema),

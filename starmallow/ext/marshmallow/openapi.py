@@ -97,7 +97,7 @@ class OpenAPIConverter(ApiSpecOpenAPIConverter):
             spec=spec,
         )
         self.add_attribute_function(self.field2title)
-        self.add_attribute_function(self.field2uniqueItems)
+        self.add_attribute_function(self.field2unique_items)
         self.add_attribute_function(self.field2enum)
         self.add_attribute_function(self.field2union)
 
@@ -187,7 +187,7 @@ class OpenAPIConverter(ApiSpecOpenAPIConverter):
 
         return ret
 
-    def field2uniqueItems(self: FieldConverterMixin, field: mf.Field, **kwargs: Any) -> dict:
+    def field2unique_items(self: FieldConverterMixin, field: mf.Field, **kwargs: Any) -> dict:
         ret = {}
 
         # If this type isn't directly in the field mapping then check the
@@ -203,10 +203,7 @@ class OpenAPIConverter(ApiSpecOpenAPIConverter):
         ret = {}
 
         if isinstance(field, mf.Enum):
-            if field.by_value:
-                choices = [x.value for x in field.enum]
-            else:
-                choices = list(field.enum.__members__)
+            choices = [x.value for x in field.enum] if field.by_value else list(field.enum.__members__)
 
             if choices:
                 ret['enum'] = choices
@@ -242,7 +239,7 @@ class OpenAPIConverter(ApiSpecOpenAPIConverter):
 
         return ret
 
-    # Overrice to add 'deprecated' support
+    # Override to add 'deprecated' support
     def _field2parameter(
         self, field: mf.Field, *, name: str, location: str,
     ):
@@ -289,19 +286,19 @@ class OpenAPIConverter(ApiSpecOpenAPIConverter):
         :rtype: dict, a JSON Schema Object
         """
         fields = get_fields(schema)
-        Meta = getattr(schema, "Meta", None)
+        meta: ma.Schema.Meta = getattr(schema, "Meta", None)
         partial = getattr(schema, "partial", None)
 
         jsonschema = self.fields2jsonschema(fields, partial=partial)
 
-        if hasattr(Meta, "title"):
-            jsonschema["title"] = Meta.title
+        if hasattr(meta, "title"):
+            jsonschema["title"] = meta.title
         else:
             jsonschema['title'] = schema.__class__.__name__
 
-        if hasattr(Meta, "description"):
-            jsonschema["description"] = Meta.description
-        if hasattr(Meta, "unknown") and Meta.unknown != ma.EXCLUDE:
-            jsonschema["additionalProperties"] = Meta.unknown == ma.INCLUDE
+        if hasattr(meta, "description"):
+            jsonschema["description"] = meta.description
+        if hasattr(meta, "unknown") and meta.unknown != ma.EXCLUDE:
+            jsonschema["additionalProperties"] = meta.unknown == ma.INCLUDE
 
         return jsonschema

@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict, Optional
+from typing import Any
 
 from starlette.responses import HTMLResponse
 
@@ -20,9 +20,9 @@ def get_swagger_ui_html(
     title: str,
     swagger_js_url: str = "https://cdn.jsdelivr.net/npm/swagger-ui-dist@4/swagger-ui-bundle.js",
     swagger_css_url: str = "https://cdn.jsdelivr.net/npm/swagger-ui-dist@4/swagger-ui.css",
-    oauth2_redirect_url: Optional[str] = None,
-    init_oauth: Optional[Dict[str, Any]] = None,
-    swagger_ui_parameters: Optional[Dict[str, Any]] = None,
+    oauth2_redirect_url: str | None = None,
+    init_oauth: dict[str, Any] | None = None,
+    swagger_ui_parameters: dict[str, Any] | None = None,
 ) -> HTMLResponse:
     current_swagger_ui_parameters = swagger_ui_default_parameters.copy()
     if swagger_ui_parameters:
@@ -196,5 +196,5 @@ def get_swagger_ui_oauth2_redirect_html() -> HTMLResponse:
     </script>
     </body>
     </html>
-    """  # noqa: E501
+    """
     return HTMLResponse(content=html)

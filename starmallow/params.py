@@ -1,10 +1,10 @@
 import logging
+from collections.abc import Callable, Iterable, Sequence
 from enum import Enum
-from typing import Any, Callable, Dict, Iterable, Optional, Sequence
+from typing import Any, ClassVar
 
 import marshmallow as ma
 import marshmallow.fields as mf
-from marshmallow.utils import is_iterable_but_not_string
 from marshmallow.validate import Length, Range, Regexp
 
 from starmallow.security.base import SecurityBaseResolver
@@ -27,17 +27,17 @@ class ParamType(Enum):
 
 
 class Param:
-    in_: ParamType = None
+    in_: ClassVar[ParamType]
 
     def __init__(
         self,
         default: Any = Ellipsis,
         *,
         # alias to look the param up by.
-        alias: Optional[str] = None,
+        alias: str | None = None,
         deprecated: bool | None = None,
         include_in_schema: bool = True,
-        model: ma.Schema | mf.Field = None,
+        model: ma.Schema | mf.Field | None = None,
         validators: None
         | (
             Callable[[Any], Any]
@@ -52,7 +52,7 @@ class Param:
         max_length: int | None = None,
         regex: str | None = None,
         # OpenAPI title
-        title: str = None,
+        title: str | None = None,
     ) -> None:
         self.default = default
         self.deprecated = deprecated
@@ -79,7 +79,7 @@ class Param:
             self.validators.append(Regexp(regex))
 
         if validators:
-            if is_iterable_but_not_string(validators):
+            if isinstance(validators, Iterable) and not isinstance(validators, str):
                 self.validators += validators
             elif callable(validators):
                 self.validators.append(validators)
@@ -89,7 +89,7 @@ class Param:
         if self.model and getattr(self.model, 'validators', None) and self.validators:
             logger.warning('Provided validators will override model validators')
 
-    def __eq__(self, other: "Param") -> bool:
+    def __eq__(self, other: "object | Param") -> bool:
         return (
             isinstance(other, Param)
             and self.__class__ == other.__class__
@@ -120,10 +120,10 @@ class Header(Param):
         default: Any = Ellipsis,
         *,
         # alias to look the param up by.
-        alias: Optional[str] = None,
+        alias: str | None = None,
         deprecated: bool | None = None,
         include_in_schema: bool = True,
-        model: ma.Schema | mf.Field = None,
+        model: ma.Schema | mf.Field | None = None,
         validators: None
         | (
             Callable[[Any], Any]
@@ -138,7 +138,7 @@ class Header(Param):
         max_length: int | None = None,
         regex: str | None = None,
         # OpenAPI title
-        title: str = None,
+        title: str | None = None,
         convert_underscores: bool = True,
     ) -> None:
         self.convert_underscores = convert_underscores
@@ -174,7 +174,7 @@ class Body(Param):
         media_type: str = "application/json",
         deprecated: bool | None = None,
         include_in_schema: bool = True,
-        model: ma.Schema | mf.Field = None,
+        model: ma.Schema | mf.Field | None = None,
         validators: None
         | (
             Callable[[Any], Any]
@@ -188,7 +188,7 @@ class Body(Param):
         min_length: int | None = None,
         max_length: int | None = None,
         regex: str | None = None,
-        title: str = None,
+        title: str | None = None,
     ) -> None:
         super().__init__(
             default=default,
@@ -218,7 +218,7 @@ class Form(Body):
         media_type: str = "application/x-www-form-urlencoded",
         deprecated: bool | None = None,
         include_in_schema: bool = True,
-        model: ma.Schema | mf.Field = None,
+        model: ma.Schema | mf.Field | None = None,
         validators: None
         | (
             Callable[[Any], Any]
@@ -232,7 +232,7 @@ class Form(Body):
         min_length: int | None = None,
         max_length: int | None = None,
         regex: str | None = None,
-        title: str = None,
+        title: str | None = None,
     ) -> None:
         super().__init__(
             default=default,
@@ -259,14 +259,13 @@ class NoParam:
 
         Arguments will not be added to Swagger docs or be validated in any way.
     '''
-    pass
 
 
 class ResolvedParam:
-    def __init__(self, resolver: Callable[[Any], Any] = None, use_cache: bool = True):
+    def __init__(self, resolver: Callable[[Any], Any] | None = None, use_cache: bool = True):
         self.resolver = resolver
         # Set when we resolve the routes in the EnpointMixin
-        self.resolver_params: Dict[ParamType, Dict[str, Param]] = {}
+        self.resolver_params: dict[ParamType, dict[str, Param]] = {}
         self.use_cache = use_cache
         self.cache_key = (self.resolver, None)
 
@@ -275,14 +274,14 @@ class Security(ResolvedParam):
 
     def __init__(
         self,
-        resolver: SecurityBaseResolver = None,
-        scopes: Optional[Sequence[str]] = None,
+        resolver: SecurityBaseResolver | None = None,
+        scopes: Sequence[str] | None = None,
         use_cache: bool = True,
     ):
         # Not calling super so that the resolver typehinting actually works in VSCode
         self.resolver = resolver
         # Set when we resolve the routes in the EnpointMixin
-        self.resolver_params: Dict[ParamType, Dict[str, Param]] = {}
+        self.resolver_params: dict[ParamType, dict[str, Param]] = {}
         self.scopes = scopes or []
         self.use_cache = use_cache
         self.cache_key = (self.resolver, tuple(sorted(set(self.scopes or []))))

@@ -1,7 +1,7 @@
 import datetime as dt
 from decimal import Decimal
 from enum import Enum
-from typing import Dict, Final, List, Literal, Set
+from typing import Final, Literal
 from uuid import UUID
 
 import marshmallow.fields as mf
@@ -22,8 +22,8 @@ app = StarMallow()
 ############################################################
 # region
 class MyEnum(Enum):
-    optionA = 'optionA'
-    optionB = 'optionB'
+    optionA = 'optionA'  # noqa: N815
+    optionB = 'optionB'  # noqa: N815
 
 
 @ma_dataclass
@@ -133,22 +133,22 @@ def get_path_schema_model():
 
 
 @app.get("/path/list_date", response_class=ORJSONResponse)
-def get_path_list_date() -> List[dt.date]:
+def get_path_list_date() -> list[dt.date]:
     return [dt.date(2023, 2, 27)]
 
 
 @app.get("/path/set_date", response_class=ORJSONResponse)
-def get_path_set_date() -> Set[dt.date]:
+def get_path_set_date() -> set[dt.date]:
     return {dt.date(2023, 2, 27)}
 
 
 @app.get("/path/dict_date_date", response_class=ORJSONResponse)
-def get_path_dict_date_date() -> Dict[dt.date, dt.date]:
+def get_path_dict_date_date() -> dict[dt.date, dt.date]:
     return {dt.date(2023, 2, 27): dt.date(2023, 2, 27)}
 
 
 @app.get("/path/list_dataclass", response_class=ORJSONResponse)
-def get_path_list_dataclass() -> List[Item]:
+def get_path_list_dataclass() -> list[Item]:
     return [{'item_id': dt.date(2023, 2, 27)}]
 
 
@@ -569,7 +569,7 @@ openapi_schema = {
 
 
 @pytest.mark.parametrize(
-    "path,expected_status,expected_response",
+    ('path', 'expected_status', 'expected_response'),
     [
         ('/path/str', 200, "5"),
         ('/path/int', 200, 5),

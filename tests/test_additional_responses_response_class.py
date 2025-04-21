@@ -1,5 +1,3 @@
-import typing
-
 from marshmallow_dataclass2 import dataclass as ma_dataclass
 from starlette.responses import JSONResponse
 from starlette.testclient import TestClient
@@ -23,7 +21,7 @@ class Error:
 
 @ma_dataclass
 class JsonApiError:
-    errors: typing.List[Error]
+    errors: list[Error]
 
 
 @app.get(

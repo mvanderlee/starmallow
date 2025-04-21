@@ -231,7 +231,7 @@ openapi_schema = {
 
 
 @pytest.mark.parametrize(
-    "path,headers,expected_status,expected_response",
+    ("path", "headers", "expected_status", "expected_response"),
     [
         ("/path/1,2,3,4", {}, 200, [1, 2, 3, 4]),
         ("/query?item_ids=5,4,3,2", {}, 200, [5, 4, 3, 2]),
@@ -247,7 +247,7 @@ def test_get_path(path, headers, expected_status, expected_response):
 
 
 @pytest.mark.parametrize(
-    "path,headers,body,expected_status,expected_response",
+    ("path", "headers", "body", "expected_status", "expected_response"),
     [
         ("/json", {}, {'item_ids': '1,3,5'}, 200, [1, 3, 5]),
     ],

@@ -1,8 +1,9 @@
 import asyncio
 import inspect
 import logging
+from collections.abc import Callable, Mapping
 from contextlib import AsyncExitStack
-from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple, Union
+from typing import Any, cast
 
 import marshmallow as ma
 import marshmallow.fields as mf
@@ -18,6 +19,7 @@ from starlette.websockets import WebSocket
 
 from starmallow.background import BackgroundTasks
 from starmallow.params import Param, ParamType, ResolvedParam
+from starmallow.security.base import SecurityBaseResolver
 from starmallow.utils import (
     is_async_gen_callable,
     is_gen_callable,
@@ -30,9 +32,9 @@ logger = logging.getLogger(__name__)
 
 async def get_body(
     request: Request,
-    form_params: Dict[str, Param],
-    body_params: Dict[str, Param],
-) -> Union[FormData, bytes, Dict[str, Any]]:
+    form_params: Mapping[str, Param],
+    body_params: Mapping[str, Param],
+) -> FormData | bytes | dict[str, Any]:
     is_body_form = bool(form_params)
     should_process_body = is_body_form or body_params
     try:
@@ -47,18 +49,14 @@ async def get_body(
                 body_bytes = await request.body()
                 if body_bytes:
                     json_body: Any = missing_
-                    content_type_value: str = request.headers.get("content-type")
+                    content_type_value = request.headers.get("content-type")
                     if not content_type_value:
                         json_body = await request.json()
                     else:
                         main_type, sub_type = content_type_value.split(';')[0].split('/')
-                        if main_type == "application":
-                            if sub_type == "json" or sub_type.endswith("+json"):
-                                json_body = await request.json()
-                    if json_body != missing_:
-                        body = json_body
-                    else:
-                        body = body_bytes
+                        if main_type == "application" and (sub_type == "json" or sub_type.endswith("+json")):
+                            json_body = await request.json()
+                    body = json_body if json_body != missing_ else body_bytes
 
         return body
     except Exception as e:
@@ -68,17 +66,20 @@ async def get_body(
 
 
 def request_params_to_args(
-    received_params: Union[Mapping[str, Any], QueryParams, Headers],
-    endpoint_params: Dict[str, Param],
+    received_params: Mapping[str, Any] | QueryParams | Headers | None,
+    endpoint_params: Mapping[str, Param] | None,
     ignore_namespace: bool = True,
-) -> Tuple[Dict[str, Any], ErrorStore]:
+) -> tuple[dict[str, Any], ErrorStore]:
+    received_params = received_params or {}
+    endpoint_params = endpoint_params or {}
     values = {}
     error_store = ErrorStore()
     for field_name, param in endpoint_params.items():
-        if not param.alias and getattr(param, "convert_underscores", None):
-            alias = field_name.replace("_", "-")
-        else:
-            alias = param.alias or field_name
+        alias = (
+            field_name.replace("_", "-")
+            if not param.alias and getattr(param, "convert_underscores", None)
+            else param.alias or field_name
+        )
 
         if isinstance(param.model, mf.Field):
             try:
@@ -92,13 +93,13 @@ def request_params_to_args(
                 error_store.store_error(error.messages, field_name)
         elif isinstance(param.model, ma.Schema):
             try:
-                load_params = received_params if ignore_namespace else received_params.get(alias, {})
+                load_params = received_params if ignore_namespace else received_params.get(alias) or {}
 
                 # Entire model is optional and no data was passed in.
                 if getattr(param.model, 'required', None) is False and not load_params:
                     values[field_name] = None
                 else:
-                    values[field_name] = param.model.load(load_params, unknown=ma.EXCLUDE)
+                    values[field_name] = param.model.load(cast(Mapping, load_params), unknown=ma.EXCLUDE)
 
             except ma.ValidationError as error:
                 # Entire model is optional, so ignore errors
@@ -116,8 +117,8 @@ async def resolve_basic_args(
     request: Request | WebSocket,
     response: Response,
     background_tasks: StarletteBackgroundTasks,
-    params: Dict[ParamType, Dict[str, Param]],
-):
+    params: Mapping[ParamType, Mapping[str, Param]],
+) -> tuple[dict[str, Any], dict[str, Any | list | dict]]:
     path_values, path_errors = request_params_to_args(
         request.path_params,
         params.get(ParamType.path),
@@ -135,27 +136,28 @@ async def resolve_basic_args(
         params.get(ParamType.cookie),
     )
 
-    form_params = params.get(ParamType.form)
-    body_params = params.get(ParamType.body)
-    body = await get_body(request, form_params, body_params)
     form_values, form_errors = {}, None
     json_values, json_errors = {}, None
-    if form_params:
-        form_values, form_errors = request_params_to_args(
-            body if body is not None and isinstance(body, FormData) else {},
-            form_params,
-            # If there is only one parameter defined, then don't namespace by the parameter name
-            # Otherwise we honor the namespace: https://fastapi.tiangolo.com/tutorial/body-multiple-params/
-            ignore_namespace=len(form_params) == 1,
-        )
-    if body_params:
-        json_values, json_errors = request_params_to_args(
-            body if body is not None and isinstance(body, Mapping) else {},
-            body_params,
-            # If there is only one parameter defined, then don't namespace by the parameter name
-            # Otherwise we honor the namespace: https://fastapi.tiangolo.com/tutorial/body-multiple-params/
-            ignore_namespace=len(body_params) == 1,
-        )
+    if isinstance(request, Request):
+        form_params = params.get(ParamType.form) or {}
+        body_params = params.get(ParamType.body) or {}
+        body = await get_body(request, form_params, body_params)
+        if form_params:
+            form_values, form_errors = request_params_to_args(
+                body if body is not None and isinstance(body, FormData) else {},
+                form_params,
+                # If there is only one parameter defined, then don't namespace by the parameter name
+                # Otherwise we honor the namespace: https://fastapi.tiangolo.com/tutorial/body-multiple-params/
+                ignore_namespace=len(form_params) == 1,
+            )
+        if body_params:
+            json_values, json_errors = request_params_to_args(
+                body if body is not None and isinstance(body, Mapping) else {},
+                body_params,
+                # If there is only one parameter defined, then don't namespace by the parameter name
+                # Otherwise we honor the namespace: https://fastapi.tiangolo.com/tutorial/body-multiple-params/
+                ignore_namespace=len(body_params) == 1,
+            )
 
     values = {
         **path_values,
@@ -180,7 +182,7 @@ async def resolve_basic_args(
         errors['json'] = json_errors.errors
 
     # Handle non-field params
-    for param_name, param_type in params.get(ParamType.noparam).items():
+    for param_name, param_type in (params.get(ParamType.noparam) or {}).items():
         if lenient_issubclass(param_type, (HTTPConnection, Request, WebSocket)):
             values[param_name] = request
         elif lenient_issubclass(param_type, Response):
@@ -195,12 +197,12 @@ async def call_resolver(
     request: Request | WebSocket,
     param_name: str,
     resolved_param: ResolvedParam,
-    resolver_kwargs: Dict[str, Any],
+    resolver_kwargs: dict[str, Any],
 ):
     # Resolver can be a class with __call__ function
     resolver = resolved_param.resolver
     if not inspect.isfunction(resolver) and callable(resolver):
-        resolver = resolver.__call__
+        resolver = resolver.__call__  # type: ignore
     elif not inspect.isfunction(resolver):
         raise TypeError(f'{param_name} = {resolved_param} resolver is not a function or callable')
 
@@ -220,10 +222,11 @@ async def resolve_subparams(
     request: Request | WebSocket,
     response: Response,
     background_tasks: StarletteBackgroundTasks,
-    params: Dict[str, ResolvedParam],
-    dependency_cache: Optional[Dict[Tuple[Callable[..., Any], Tuple[str]], Any]],
-) -> Dict[str, Any]:
+    params: Mapping[str, ResolvedParam] | None,
+    dependency_cache: dict[tuple[Callable[..., Any] | SecurityBaseResolver | None, tuple[str, ...] | None], Any],
+) -> tuple[dict[str, Any], dict[str, Any | list | dict]]:
     values = {}
+    params = params or {}
     for param_name, resolved_param in params.items():
         if resolved_param.use_cache and resolved_param.cache_key in dependency_cache:
             values[param_name] = dependency_cache[resolved_param.cache_key]
@@ -239,9 +242,9 @@ async def resolve_subparams(
 
         # Exit early since other resolvers may rely on this one, which could raise argument exceptions
         if resolver_errors:
-            return None, resolver_errors
+            return {}, resolver_errors
 
-        resolved_value = await call_resolver(request, param_name, resolved_param, resolver_kwargs)
+        resolved_value = await call_resolver(request, param_name, resolved_param, resolver_kwargs or {})
         values[param_name] = resolved_value
         if resolved_param.use_cache:
             dependency_cache[resolved_param.cache_key] = resolved_value
@@ -251,11 +254,11 @@ async def resolve_subparams(
 
 async def resolve_params(
     request: Request | WebSocket,
-    params: Dict[ParamType, Dict[str, Param]],
-    background_tasks: Optional[StarletteBackgroundTasks] = None,
-    response: Optional[Response] = None,
-    dependency_cache: Optional[Dict[Tuple[Callable[..., Any], Tuple[str]], Any]] = None,
-) -> Tuple[Dict[str, Any], Dict[str, Union[Any, List, Dict]], StarletteBackgroundTasks, Response]:
+    params: Mapping[ParamType, Mapping[str, Param]],
+    background_tasks: StarletteBackgroundTasks | None = None,
+    response: Response | None = None,
+    dependency_cache: dict[tuple[Callable[..., Any] | SecurityBaseResolver | None, tuple[str, ...] | None], Any] | None = None,
+) -> tuple[dict[str, Any] | None, dict[str, Any | list | dict], StarletteBackgroundTasks, Response]:
     dependency_cache = dependency_cache or {}
 
     if response is None:
@@ -271,7 +274,7 @@ async def resolve_params(
         request,
         response,
         background_tasks,
-        params.get(ParamType.security),
+        params.get(ParamType.security), # type: ignore
         dependency_cache=dependency_cache,
     )
     if errors:
@@ -290,7 +293,7 @@ async def resolve_params(
         request,
         response,
         background_tasks,
-        params.get(ParamType.resolved),
+        params.get(ParamType.resolved), # type: ignore
         dependency_cache=dependency_cache,
     )
     if errors:

@@ -1,6 +1,6 @@
 '''Test Resolved Params'''
 
-from typing import Annotated, Tuple
+from typing import Annotated
 from uuid import uuid4
 
 import pytest
@@ -78,7 +78,7 @@ def get_filtered_paging_2(filtered_paging_params=ResolvedParam(searchable_page_p
 @app.get("/nested")
 def get_nested(
     session: DBSession,
-    item: Tuple[str, str] = ResolvedParam(get_item_from_token),
+    item: tuple[str, str] = ResolvedParam(get_item_from_token),
 ):
     assert session == item[0]
     return {
@@ -284,7 +284,7 @@ openapi_schema = {
 
 
 @pytest.mark.parametrize(
-    "path,headers,expected_status,expected_response",
+    ('path', 'headers', 'expected_status', 'expected_response'),
     [
         ("/paging?limit=50", {}, 200, {"offset": 0, "limit": 50}),
         ("/filtered_paging_1/name=foobar", {}, 200, {"q": "name=foobar"}),

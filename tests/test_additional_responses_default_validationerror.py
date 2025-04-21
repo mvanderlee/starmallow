@@ -8,7 +8,7 @@ app = StarMallow()
 
 
 @app.get("/a/{id}")
-async def a(id):
+async def a(id):  # noqa: A002
     pass  # pragma: no cover
 
 

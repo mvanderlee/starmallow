@@ -1,7 +1,7 @@
 import datetime as dt
 from decimal import Decimal
 from enum import Enum
-from typing import Dict, Final, List, Literal, Set
+from typing import Final, Literal
 from uuid import UUID
 
 import marshmallow.fields as mf
@@ -22,8 +22,8 @@ app = StarMallow()
 ############################################################
 # region
 class MyEnum(Enum):
-    optionA = 'optionA'
-    optionB = 'optionB'
+    optionA = 'optionA'  # noqa: N815
+    optionB = 'optionB'  # noqa: N815
 
 
 @ma_dataclass
@@ -38,61 +38,61 @@ class Item:
 # region
 @app.put("/orjson/str", request_class=ORJSONRequest)
 def put_orjson_str(input_: str = Body()) -> str:
-    assert type(input_) == str
+    assert type(input_) is str
     return input_
 
 
 @app.put("/orjson/int", request_class=ORJSONRequest)
 def put_orjson_int(input_: int = Body()) -> int:
-    assert type(input_) == int
+    assert type(input_) is int
     return input_
 
 
 @app.put("/orjson/bool", request_class=ORJSONRequest)
 def put_orjson_bool(input_: bool = Body()) -> bool:
-    assert type(input_) == bool
+    assert type(input_) is bool
     return input_
 
 
 @app.put("/orjson/date", request_class=ORJSONRequest)
 def put_orjson_date(input_: dt.date = Body()) -> dt.date:
-    assert type(input_) == dt.date
+    assert type(input_) is dt.date
     return input_
 
 
 @app.put("/orjson/datetime", request_class=ORJSONRequest)
 def put_orjson_datetime(input_: dt.datetime = Body()) -> dt.datetime:
-    assert type(input_) == dt.datetime
+    assert type(input_) is dt.datetime
     return input_
 
 
 @app.put("/orjson/time", request_class=ORJSONRequest)
 def put_orjson_time(input_: dt.time = Body()) -> dt.time:
-    assert type(input_) == dt.time
+    assert type(input_) is dt.time
     return input_
 
 
 @app.put("/orjson/timedelta", request_class=ORJSONRequest)
 def put_orjson_timedelta(input_: dt.timedelta = Body()) -> dt.timedelta:
-    assert type(input_) == dt.timedelta
+    assert type(input_) is dt.timedelta
     return input_
 
 
 @app.put("/orjson/uuid", request_class=ORJSONRequest)
 def put_orjson_uuid(input_: UUID = Body()) -> UUID:
-    assert type(input_) == UUID
+    assert type(input_) is UUID
     return input_
 
 
 @app.put("/orjson/decimal", request_class=ORJSONRequest)
 def put_orjson_decimal(input_: Decimal = Body()) -> Decimal:
-    assert type(input_) == Decimal
+    assert type(input_) is Decimal
     return input_
 
 
 @app.put("/orjson/enum", request_class=ORJSONRequest)
 def put_orjson_enum(input_: MyEnum = Body()) -> MyEnum:
-    assert type(input_) == MyEnum
+    assert type(input_) is MyEnum
     return input_
 
 
@@ -110,58 +110,58 @@ class FinalItem:
 
 @app.put("/orjson/final", request_class=ORJSONRequest)
 def put_orjson_final(input_: FinalItem = Body()) -> FinalItem:
-    assert type(input_) == FinalItem
+    assert type(input_) is FinalItem
     return input_
 
 
 @app.put("/orjson/date_field", request_class=ORJSONRequest)
 def put_orjson_date_field(input_: mf.Date = Body()) -> mf.Date:
-    assert type(input_) == dt.date
+    assert type(input_) is dt.date
     return input_
 
 
 @app.put("/orjson/dataclass", request_class=ORJSONRequest)
 def put_orjson_dataclass(input_: Item = Body()) -> Item:
-    assert type(input_) == Item
+    assert type(input_) is Item
     return input_
 
 
 @app.put("/orjson/schema", request_class=ORJSONRequest)
 def put_orjson_schema(input_: Item.Schema = Body()) -> Item.Schema:
-    assert type(input_) == Item
+    assert type(input_) is Item
     return input_
 
 
 @app.put("/orjson/list_date", request_class=ORJSONRequest)
-def put_orjson_list_date(input_: List[dt.date] = Body()) -> List[dt.date]:
-    assert type(input_) == list
+def put_orjson_list_date(input_: list[dt.date] = Body()) -> list[dt.date]:
+    assert type(input_) is list
     assert len(input_) > 0
-    assert type(input_[0]) == dt.date
+    assert type(input_[0]) is dt.date
     return input_
 
 
 @app.put("/orjson/set_date", request_class=ORJSONRequest)
-def put_orjson_set_date(input_: Set[dt.date] = Body()) -> Set[dt.date]:
-    assert type(input_) == set
+def put_orjson_set_date(input_: set[dt.date] = Body()) -> set[dt.date]:
+    assert type(input_) is set
     assert len(input_) > 0
-    assert type(list(input_)[0]) == dt.date
+    assert type(next(iter(input_))) is dt.date
     return input_
 
 
 @app.put("/orjson/dict_date_date", request_class=ORJSONRequest)
-def put_orjson_dict_date_date(input_: Dict[dt.date, dt.date] = Body()) -> Dict[dt.date, dt.date]:
-    assert type(input_) == dict
+def put_orjson_dict_date_date(input_: dict[dt.date, dt.date] = Body()) -> dict[dt.date, dt.date]:
+    assert type(input_) is dict
     assert len(input_) > 0
-    assert type(list(input_.keys())[0]) == dt.date
-    assert type(list(input_.values())[0]) == dt.date
+    assert type(next(iter(input_.keys()))) is dt.date
+    assert type(next(iter(input_.values()))) is dt.date
     return input_
 
 
 @app.put("/orjson/list_dataclass", request_class=ORJSONRequest)
-def put_orjson_list_dataclass(input_: List[Item] = Body()) -> List[Item]:
-    assert type(input_) == list
+def put_orjson_list_dataclass(input_: list[Item] = Body()) -> list[Item]:
+    assert type(input_) is list
     assert len(input_) > 0
-    assert type(input_[0]) == Item
+    assert type(input_[0]) is Item
     return input_
 # endregion
 
@@ -1118,7 +1118,7 @@ openapi_schema = {
 
 
 @pytest.mark.parametrize(
-    "path,expected_status,expected_response",
+    ("path", "expected_status", "expected_response"),
     [
         ("/openapi.json", 200, openapi_schema),
     ],
@@ -1130,7 +1130,7 @@ def test_get_path(path, expected_status, expected_response):
 
 
 @pytest.mark.parametrize(
-    "path,expected_status,input_,wrap",
+    ("path", "expected_status", "input_", "wrap"),
     [
         ('/orjson/str', 200, "5", True),
         ('/orjson/int', 200, 5, True),

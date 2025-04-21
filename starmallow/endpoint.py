@@ -1,31 +1,27 @@
 import inspect
 import logging
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import (
     TYPE_CHECKING,
+    Annotated,
     Any,
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    Mapping,
     NewType,
-    Optional,
-    Type,
-    Union,
+    cast,
     get_args,
     get_origin,
 )
 
 import marshmallow as ma
 import marshmallow.fields as mf
+import typing_inspect
+from marshmallow.types import StrSequenceOrSet
 from marshmallow.utils import missing as missing_
 from marshmallow_dataclass2 import class_schema, is_generic_alias_of_dataclass
 from starlette.background import BackgroundTasks
 from starlette.requests import HTTPConnection, Request
 from starlette.responses import Response
 from starlette.websockets import WebSocket
-from typing_extensions import Annotated
 
 from starmallow.params import (
     Body,
@@ -43,20 +39,21 @@ from starmallow.params import (
 from starmallow.responses import JSONResponse
 from starmallow.security.base import SecurityBaseResolver
 from starmallow.utils import (
+    MaDataclassProtocol,
     create_response_model,
     get_model_field,
     get_path_param_names,
     get_typed_return_annotation,
     get_typed_signature,
     is_marshmallow_dataclass,
-    is_marshmallow_field,
+    is_marshmallow_field_or_generic,
     is_marshmallow_schema,
     is_optional,
     lenient_issubclass,
 )
 
 if TYPE_CHECKING:
-    from starmallow.routing import APIRoute
+    from starmallow.routing import APIRoute, APIWebSocketRoute
 
 logger = logging.getLogger(__name__)
 
@@ -70,52 +67,52 @@ STARMALLOW_PARAM_TYPES = (
 
 @dataclass
 class EndpointModel:
-    params: Optional[Dict[ParamType, Dict[str, Param]]] = field(default_factory=dict)
-    flat_params: Optional[Dict[ParamType, Dict[str, Param]]] = field(default_factory=dict)
-    name: Optional[str] = None
-    path: Optional[str] = None
-    methods: Optional[List[str]] = None
-    call: Optional[Callable[..., Any]] = None
-    response_model: Optional[ma.Schema | mf.Field] = None
-    response_class: Type[Response] = JSONResponse
-    status_code: Optional[int] = None
-    route: 'APIRoute' = None
+    path: str
+    call: Callable[..., Any]
+    route: 'APIRoute | APIWebSocketRoute'
+    params: dict[ParamType, dict[str, Param]] = field(default_factory=dict)
+    flat_params: dict[ParamType, dict[str, Param]] = field(default_factory=dict)
+    name: str | None = None
+    methods: Sequence[str] | None = None
+    response_model: ma.Schema | type[ma.Schema | MaDataclassProtocol] | mf.Field | None = None
+    response_class: type[Response] = JSONResponse
+    status_code: int | None = None
 
     @property
-    def path_params(self) -> Dict[str, Path] | None:
-        return self.flat_params.get(ParamType.path)
+    def path_params(self) -> dict[str, Path] | None:
+        return cast(dict[str, Path], self.flat_params.get(ParamType.path))
 
     @property
-    def query_params(self) -> Dict[str, Query] | None:
-        return self.flat_params.get(ParamType.query)
+    def query_params(self) -> dict[str, Query] | None:
+        return cast(dict[str, Query], self.flat_params.get(ParamType.query))
 
     @property
-    def header_params(self) -> Dict[str, Header] | None:
-        return self.flat_params.get(ParamType.header)
+    def header_params(self) -> dict[str, Header] | None:
+        return cast(dict[str, Header], self.flat_params.get(ParamType.header))
 
     @property
-    def cookie_params(self) -> Dict[str, Cookie] | None:
-        return self.flat_params.get(ParamType.cookie)
+    def cookie_params(self) -> dict[str, Cookie] | None:
+        return cast(dict[str, Cookie], self.flat_params.get(ParamType.cookie))
 
     @property
-    def body_params(self) -> Dict[str, Body] | None:
-        return self.flat_params.get(ParamType.body)
+    def body_params(self) -> dict[str, Body] | None:
+        return cast(dict[str, Body], self.flat_params.get(ParamType.body))
 
     @property
-    def form_params(self) -> Dict[str, Form] | None:
-        return self.flat_params.get(ParamType.form)
+    def form_params(self) -> dict[str, Form] | None:
+        return cast(dict[str, Form], self.flat_params.get(ParamType.form))
 
     @property
-    def non_field_params(self) -> Dict[str, NoParam] | None:
-        return self.flat_params.get(ParamType.noparam)
+    def non_field_params(self) -> dict[str, NoParam] | None:
+        return cast(dict[str, NoParam], self.flat_params.get(ParamType.noparam))
 
     @property
-    def resolved_params(self) -> Dict[str, ResolvedParam] | None:
-        return self.flat_params.get(ParamType.resolved)
+    def resolved_params(self) -> dict[str, ResolvedParam] | None:
+        return cast(dict[str, ResolvedParam], self.flat_params.get(ParamType.resolved))
 
     @property
-    def security_params(self) -> Dict[str, Security] | None:
-        return self.flat_params.get(ParamType.security)
+    def security_params(self) -> dict[str, Security] | None:
+        return cast(dict[str, Security], self.flat_params.get(ParamType.security))
 
 
 class SchemaMeta:
@@ -129,20 +126,20 @@ class SchemaModel(ma.Schema):
         schema: ma.Schema,
         load_default: Any = missing_,
         required: bool = True,
-        metadata: Dict[str, Any] = None,
+        metadata: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
         self.schema = schema
         self.load_default = load_default
         self.required = required
-        self.title = metadata.get('title')
+        self.title = metadata.get('title') if metadata else None
         self.metadata = metadata
         self.kwargs = kwargs
 
         if not getattr(schema.Meta, "title", None):
             if schema.Meta is ma.Schema.Meta:
                 # Don't override global Meta object's title
-                schema.Meta = SchemaMeta(self.title)
+                schema.Meta = SchemaMeta(self.title) # type: ignore
             else:
                 schema.Meta.title = self.title
 
@@ -162,14 +159,11 @@ class SchemaModel(ma.Schema):
 
     def load(
         self,
-        data: Union[
-            Mapping[str, Any],
-            Iterable[Mapping[str, Any]],
-        ],
+        data: Mapping[str, Any] | Iterable[Mapping[str, Any]],
         *,
-        many: Optional[bool] = None,
-        partial: Optional[bool] = None,
-        unknown: Optional[str] = None,
+        many: bool | None = None,
+        partial: bool | StrSequenceOrSet | None = None,
+        unknown: str | None = None,
     ) -> Any:
         if not data and self.load_default:
             return self.load_default
@@ -185,7 +179,7 @@ class EndpointMixin:
         parameter: Param,
         parameter_name: str,
         default_value: Any,
-    ) -> Union[ma.Schema, mf.Field]:
+    ) -> ma.Schema | mf.Field | None:
         model = getattr(parameter, 'model', None) or type_annotation
         if isinstance(model, SchemaModel):
             return model
@@ -244,21 +238,22 @@ class EndpointMixin:
         if is_marshmallow_dataclass(model):
             model = model.Schema
 
-        if is_generic_alias_of_dataclass(model):
-            model = class_schema(model)
+        if is_generic_alias_of_dataclass(model): # type: ignore
+            model = class_schema(model) # type: ignore
 
-        if isinstance(model, NewType) and getattr(model, '_marshmallow_field', None):
-            return model._marshmallow_field(**kwargs)
+        mmf = getattr(model, '_marshmallow_field', None)
+        if isinstance(model, NewType) and mmf and issubclass(mmf, mf.Field):
+            return mmf(**kwargs)
         elif is_marshmallow_schema(model):
             return SchemaModel(model() if inspect.isclass(model) else model, **kwargs)
-        elif is_marshmallow_field(model):
-            if inspect.isclass(model):
+        elif is_marshmallow_field_or_generic(model):
+            if not isinstance(model, mf.Field): # inspect.isclass(model):
                 model = model()
 
             if model.load_default is not None and model.load_default != kwargs.get('load_default', ma.missing):
                 logger.warning(
                     f"'{parameter_name}' model and annotation have different 'load_default' values."
-                    + f" {model.load_default} <> {kwargs.get('load_default', ma.missing)}",
+                    f" {model.load_default} <> {kwargs.get('load_default', ma.missing)}",
                 )
 
             model.required = kwargs['required']
@@ -266,6 +261,11 @@ class EndpointMixin:
             model.metadata.update(kwargs['metadata'])
 
             return model
+
+        # elif is_marshmallow_field_or_generic(model):
+        #     if isinstance(model, mf.Field):
+        #         model if isinstance(model, mf.Field) else model()
+
         else:
             try:
                 return get_model_field(model, **kwargs)
@@ -282,11 +282,19 @@ class EndpointMixin:
 
         return resolved_param
 
+    def get_security_param(self, resolved_param: Security, annotation: Any, path: str) -> Security:
+        if resolved_param.resolver is None:
+            resolved_param.resolver = annotation
+
+        resolved_param.resolver_params = self._get_params(resolved_param.resolver, path=path)
+
+        return resolved_param
+
     def _get_params(
         self,
         func: Callable[..., Any],
         path: str,
-    ) -> Dict[ParamType, Dict[str, Param]]:
+    ) -> dict[ParamType, dict[str, Param]]:
         path_param_names = get_path_param_names(path)
         params = {param_type: {} for param_type in ParamType}
         for name, parameter in get_typed_signature(func).parameters.items():
@@ -313,8 +321,7 @@ class EndpointMixin:
                 ]
                 if starmallow_annotations:
                     assert starmallow_param is inspect._empty, (
-                        "Cannot specify `Param` in `Annotated` and default value"
-                    f" together for {name!r}"
+                        f"Cannot specify `Param` in `Annotated` and default value together for {name!r}"
                     )
 
                     starmallow_param = starmallow_annotations[-1]
@@ -325,6 +332,20 @@ class EndpointMixin:
                     ):
                         default_value = starmallow_param.default
 
+                field_annotations = [
+                    arg
+                    for arg in annotated_args
+                    if (
+                        isinstance(arg, mf.Field)
+                        or lenient_issubclass(arg, mf.Field)
+                        or (
+                            isinstance(arg, typing_inspect.typingGenericAlias)
+                            and lenient_issubclass(get_origin(arg), mf.Field)
+                        )
+                    )
+                ]
+                if field_annotations:
+                    type_annotation = field_annotations[-1]
             if (
                 # Skip 'self' in APIHTTPEndpoint functions
                 (name == 'self' and '.' in func.__qualname__)
@@ -332,11 +353,11 @@ class EndpointMixin:
             ):
                 continue
             elif isinstance(starmallow_param, Security):
-                security_param: Security = self.get_resolved_param(starmallow_param, type_annotation, path=path)
+                security_param = self.get_security_param(starmallow_param, type_annotation, path=path)
                 params[ParamType.security][name] = security_param
                 continue
             elif isinstance(starmallow_param, ResolvedParam):
-                resolved_param: ResolvedParam = self.get_resolved_param(starmallow_param, type_annotation, path=path)
+                resolved_param = self.get_resolved_param(starmallow_param, type_annotation, path=path)
 
                 # Allow `ResolvedParam(HTTPBearer())` - treat as securty param
                 if isinstance(resolved_param.resolver, SecurityBaseResolver):
@@ -359,7 +380,7 @@ class EndpointMixin:
                 continue
 
             model = self._get_param_model(type_annotation, starmallow_param, name, default_value)
-            model.name = name
+            model.name = name # type: ignore
 
             if isinstance(starmallow_param, Param):
                 # Create new field_info with processed model
@@ -397,18 +418,18 @@ class EndpointMixin:
     def get_endpoint_model(
         self,
         path: str,
-        endpoint: Callable[..., Any],
-        route: 'APIRoute',
-        name: Optional[str] = None,
-        methods: Optional[List[str]] = None,
+        endpoint: Callable[..., ma.Schema | mf.Field | Response | None],
+        route: 'APIRoute | APIWebSocketRoute',
+        name: str | None = None,
+        methods: Sequence[str] | None = None,
 
-        status_code: Optional[int] = None,
-        response_model: Optional[ma.Schema] = None,
-        response_class: Type[Response] = JSONResponse,
+        status_code: int | None = None,
+        response_model: ma.Schema | type[ma.Schema | MaDataclassProtocol] | None = None,
+        response_class: type[Response] = JSONResponse,
     ) -> EndpointModel:
         params = self._get_params(endpoint, path)
 
-        response_model = create_response_model(response_model or get_typed_return_annotation(endpoint))
+        response_model = create_response_model(response_model or get_typed_return_annotation(endpoint))  # type: ignore
 
         return EndpointModel(
             path=path,
@@ -425,9 +446,9 @@ class EndpointMixin:
 
 
 def safe_merge_params(
-    left: Dict[str, Param],
-    right: Dict[str, Param],
-) -> Dict[str, Param]:
+    left: dict[str, Param],
+    right: dict[str, Param],
+) -> dict[str, Param]:
     res = left.copy()
     for name, param in right.items():
         if name not in left:
@@ -439,9 +460,9 @@ def safe_merge_params(
 
 
 def safe_merge_all_params(
-    left: Dict[ParamType, Dict[str, Param]],
-    right: Dict[ParamType, Dict[str, Param]],
-) -> Dict[ParamType, Dict[str, Param]]:
+    left: dict[ParamType, dict[str, Param]],
+    right: dict[ParamType, dict[str, Param]],
+) -> dict[ParamType, dict[str, Param]]:
     res = {
         param_type: safe_merge_params(left[param_type], right[param_type])
         for param_type in ParamType
@@ -451,12 +472,13 @@ def safe_merge_all_params(
 
 
 def flatten_parameters(
-    params: Dict[ParamType, Dict[str, Param]],
-) -> Dict[ParamType, Dict[str, Param]]:
+    params: dict[ParamType, dict[str, Param]],
+) -> dict[ParamType, dict[str, Param]]:
     # flat_params = {param_type: {} for param_type in ParamType}
     flat_params = params.copy()
+
     for param in params[ParamType.resolved].values():
-        if not param.resolver_params:
+        if not (isinstance(param, ResolvedParam) and param.resolver_params):
             continue
 
         flat_params = safe_merge_all_params(flat_params, param.resolver_params)

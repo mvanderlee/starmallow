@@ -1,5 +1,6 @@
+from collections.abc import Callable
 from dataclasses import MISSING, field
-from typing import Any, Callable, Dict
+from typing import Any, Literal
 
 
 ##############################################################
@@ -15,12 +16,12 @@ from typing import Any, Callable, Dict
 ##############################################################
 def required_field(
     default: Any = None,
-    default_factory: Callable = MISSING,
+    default_factory: Callable | Literal[MISSING] = MISSING,
     dump_only: bool = False,
     load_only: bool = False,
-    description: str = None,
+    description: str | None = None,
     # Marshmallow Schema metadata
-    metadata: Dict[str, Any] = None,
+    metadata: dict[str, Any] | None = None,
     # Marshmallow Schema kwargs
     **schema_kwargs,
 ):
@@ -46,12 +47,12 @@ def required_field(
 
 def optional_field(
     default: Any = None,
-    default_factory: Callable = MISSING,
+    default_factory: Callable | Literal[MISSING] = MISSING,
     dump_only: bool = False,
     load_only: bool = False,
-    description: str = None,
+    description: str | None = None,
     # Marshmallow Schema metadata
-    metadata: Dict[str, Any] = None,
+    metadata: dict[str, Any] | None = None,
     # Marshmallow Schema kwargs
     **schema_kwargs,
 ):
@@ -77,10 +78,10 @@ def optional_field(
 
 def dump_only_field(
     default: Any = None,
-    default_factory: Callable = MISSING,
-    description: str = None,
+    default_factory: Callable | Literal[MISSING] = MISSING,
+    description: str | None = None,
     # Marshmallow Schema metadata
-    metadata: Dict[str, Any] = None,
+    metadata: dict[str, Any] | None = None,
     # Marshmallow Schema kwargs
     **schema_kwargs,
 ):

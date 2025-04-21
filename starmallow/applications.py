@@ -1,33 +1,20 @@
-import os
+from collections.abc import Awaitable, Callable, Mapping, Sequence
+from contextlib import AbstractAsyncContextManager
 from enum import Enum
 from logging import getLogger
-from string import Template
-from typing import (
-    Any,
-    AsyncContextManager,
-    Awaitable,
-    Callable,
-    Dict,
-    List,
-    Mapping,
-    Optional,
-    Sequence,
-    Set,
-    Type,
-    Union,
-)
+from typing import Any
 
 from starlette.applications import Starlette
 from starlette.datastructures import State
 from starlette.exceptions import HTTPException
 from starlette.middleware import Middleware
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware, DispatchFunction
 from starlette.middleware.errors import ServerErrorMiddleware
 from starlette.middleware.exceptions import ExceptionMiddleware
 from starlette.requests import Request
 from starlette.responses import HTMLResponse, Response
 from starlette.routing import BaseRoute
-from starlette.types import ASGIApp, Receive, Scope, Send
+from starlette.types import ASGIApp, ExceptionHandler, Receive, Scope, Send
 
 from starmallow.datastructures import Default
 from starmallow.docs import get_redoc_html, get_swagger_ui_html, get_swagger_ui_oauth2_redirect_html
@@ -41,10 +28,11 @@ from starmallow.middleware import AsyncExitStackMiddleware
 from starmallow.responses import JSONResponse
 from starmallow.routing import APIRoute, APIRouter
 from starmallow.schema_generator import SchemaGenerator
-from starmallow.types import DecoratedCallable
+from starmallow.types import DecoratedCallable, WebSocketEndpointCallable
 from starmallow.utils import generate_unique_id
 
 logger = getLogger(__name__)
+
 
 class StarMallow(Starlette):
 
@@ -52,31 +40,29 @@ class StarMallow(Starlette):
         self,
         *args,
         debug: bool = False,
-        routes: Optional[List[BaseRoute]] = None,
-        middleware: Sequence[Middleware] = None,
+        routes: list[BaseRoute] | None = None,
+        middleware: Sequence[Middleware] | None = None,
         exception_handlers: Mapping[
             Any,
-            Callable[
-                [Request, Exception], Union[Response, Awaitable[Response]],
-            ],
-        ] = None,
-        on_startup: Optional[Sequence[Callable[[], Any]]] = None,
-        on_shutdown: Optional[Sequence[Callable[[], Any]]] = None,
-        lifespan: Callable[[Starlette], AsyncContextManager] = None,
+            Callable[[Request, Exception], Response | Awaitable[Response]],
+        ] | None = None,
+        on_startup: Sequence[Callable[[], Any]] | None = None,
+        on_shutdown: Sequence[Callable[[], Any]] | None = None,
+        lifespan: Callable[[Starlette], AbstractAsyncContextManager] | None = None,
 
         title: str = "StarMallow",
         description: str = "",
         version: str = "0.1.0",
         root_path: str = "",
-        openapi_url: Optional[str] = "/openapi.json",
-        openapi_tags: Optional[List[Dict[str, Any]]] = None,
-        docs_url: Optional[str] = "/docs",
-        redoc_url: Optional[str] = "/redoc",
-        swagger_ui_oauth2_redirect_url: Optional[str] = "/docs/oauth2-redirect",
-        swagger_ui_init_oauth: Optional[Dict[str, Any]] = None,
-        swagger_ui_parameters: Optional[Dict[str, Any]] = None,
+        openapi_url: str | None = "/openapi.json",
+        openapi_tags: list[dict[str, Any]] | None = None,
+        docs_url: str | None = "/docs",
+        redoc_url: str | None = "/redoc",
+        swagger_ui_oauth2_redirect_url: str | None = "/docs/oauth2-redirect",
+        swagger_ui_init_oauth: dict[str, Any] | None = None,
+        swagger_ui_parameters: dict[str, Any] | None = None,
 
-        deprecated: Optional[bool] = None,
+        deprecated: bool | None = None,
         include_in_schema: bool = True,
 
         **kwargs,
@@ -95,7 +81,7 @@ class StarMallow(Starlette):
         self.openapi_url = openapi_url
         self.openapi_tags = openapi_tags
         self.openapi_version = "3.0.2"
-        self.openapi_schema: Optional[Dict[str, Any]] = None
+        self.openapi_schema: dict[str, Any] | None = None
         self.docs_url = docs_url
         self.redoc_url = redoc_url
         self.swagger_ui_oauth2_redirect_url = swagger_ui_oauth2_redirect_url
@@ -118,20 +104,18 @@ class StarMallow(Starlette):
         self.exception_handlers = (
             {} if exception_handlers is None else dict(exception_handlers)
         )
-        self.exception_handlers.setdefault(HTTPException, http_exception_handler)
-        self.exception_handlers.setdefault(
-            RequestValidationError, request_validation_exception_handler,
-        )
+        self.exception_handlers.setdefault(HTTPException, http_exception_handler) # type: ignore
+        self.exception_handlers.setdefault(RequestValidationError, request_validation_exception_handler) # type: ignore
 
         self.user_middleware = [] if middleware is None else list(middleware)
-        self.middleware_stack: Union[ASGIApp, None] = None
+        self.middleware_stack: ASGIApp | None = None
         self.init_openapi()
 
     def build_middleware_stack(self) -> ASGIApp:
         debug = self.debug
         error_handler = None
-        exception_handlers: Dict[
-            Any, Callable[[Request, Exception], Response],
+        exception_handlers: dict[
+            Any, Callable[[Request, Exception], Response | Awaitable[Response]],
         ] = {}
 
         for key, value in self.exception_handlers.items():
@@ -143,24 +127,20 @@ class StarMallow(Starlette):
 
             exception_handlers[key] = value
 
-        middleware = (
-            [Middleware(ServerErrorMiddleware, handler=error_handler, debug=debug)]
-            + self.user_middleware
-            + [
-                Middleware(
-                    ExceptionMiddleware, handlers=exception_handlers, debug=debug,
-                ),
-                # Teardown all ResolvedParam contextmanagers
-                Middleware(AsyncExitStackMiddleware),
-            ]
-        )
+        middleware = [
+            Middleware(ServerErrorMiddleware, handler=error_handler, debug=debug),
+            *self.user_middleware,
+            Middleware(ExceptionMiddleware, handlers=exception_handlers, debug=debug),  # type: ignore  Starlette does support awaitable
+            # Teardown all ResolvedParam contextmanagers
+            Middleware(AsyncExitStackMiddleware),
+        ]
 
         app = self.router
         for cls, args, kwargs in reversed(middleware):
-            app = cls(app=app, *args, **kwargs)  # noqa: B026
+            app = cls(app, *args, **kwargs)
         return app
 
-    def openapi(self) -> Dict[str, Any]:
+    def openapi(self) -> dict[str, Any]:
         if not self.openapi_schema:
             self.openapi_schema = SchemaGenerator(
                 self.title,
@@ -171,25 +151,28 @@ class StarMallow(Starlette):
         return self.openapi_schema
 
     def init_openapi(self):
-        if self.openapi_url:
-            async def openapi(req: Request) -> JSONResponse:
-                try:
-                    return JSONResponse(self.openapi())
-                except Exception as e:
-                    logger.exception('Failed to generate OpenAPI schema')
-                    raise SchemaGenerationError() from e
+        if not self.openapi_url:
+            return
 
-            self.add_route(self.openapi_url, openapi, include_in_schema=False)
+        openapi_url: str = self.openapi_url
 
-        if self.openapi_url and self.docs_url:
+        async def openapi(req: Request) -> JSONResponse:
+            try:
+                return JSONResponse(self.openapi())
+            except Exception as e:
+                logger.exception('Failed to generate OpenAPI schema')
+                raise SchemaGenerationError() from e
+
+        self.add_route(openapi_url, openapi, include_in_schema=False)
+
+        if self.docs_url:
             async def swagger_ui_html(req: Request) -> HTMLResponse:
-                root_path = req.scope.get("root_path", "").rstrip("/")
-                openapi_url = root_path + self.openapi_url
+                root_path: str = req.scope.get("root_path", "").rstrip("/")
                 oauth2_redirect_url = self.swagger_ui_oauth2_redirect_url
                 if oauth2_redirect_url:
                     oauth2_redirect_url = root_path + oauth2_redirect_url
                 return get_swagger_ui_html(
-                    openapi_url=openapi_url,
+                    openapi_url=root_path + openapi_url,
                     title=self.title + " - Swagger UI",
                     oauth2_redirect_url=oauth2_redirect_url,
                     init_oauth=self.swagger_ui_init_oauth,
@@ -209,33 +192,14 @@ class StarMallow(Starlette):
                     include_in_schema=False,
                 )
 
-        if self.openapi_url and self.redoc_url:
+        if self.redoc_url:
             async def redoc_html(req: Request) -> HTMLResponse:
                 root_path = req.scope.get("root_path", "").rstrip("/")
-                openapi_url = root_path + self.openapi_url
                 return get_redoc_html(
-                    openapi_url=openapi_url, title=self.title + " - ReDoc",
+                    openapi_url=root_path + openapi_url, title=self.title + " - ReDoc",
                 )
 
             self.add_route(self.redoc_url, redoc_html, include_in_schema=False)
-
-    def add_docs_route(self):
-        def swagger_ui() -> HTMLResponse:
-            with open(os.path.join(os.path.dirname(__file__), "templates/swagger_ui.html")) as f:
-                content = Template(f.read()).substitute(title=self.title, schema_url=self.schema_url)
-
-            return HTMLResponse(content)
-
-        self.add_route(path=self.docs_url, route=swagger_ui, methods=["GET"], include_in_schema=False)
-
-    def add_redoc_route(self):
-        def redoc() -> HTMLResponse:
-            with open(os.path.join(os.path.dirname(__file__), "templates/redoc.html")) as f:
-                content = Template(f.read()).substitute(title=self.title, schema_url=self.schema_url)
-
-            return HTMLResponse(content)
-
-        self.add_route(path=self.redoc_url, route=redoc, methods=["GET"], include_in_schema=False)
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if self.root_path:
@@ -245,30 +209,30 @@ class StarMallow(Starlette):
     def add_api_route(
         self,
         path: str,
-        endpoint: Union[Callable[..., Any], APIHTTPEndpoint],
+        endpoint: Callable[..., Any] | APIHTTPEndpoint,
         *,
-        methods: Optional[Union[Set[str], List[str]]] = None,
-        name: str = None,
+        methods: set[str] | list[str] | None = None,
+        name: str | None = None,
         include_in_schema: bool = True,
-        status_code: Optional[int] = None,
+        status_code: int | None = None,
         middleware: Sequence[Middleware] | None = None,
-        request_class: Type[Request] = Default(Request),
-        response_model: Optional[Type[Any]] = None,
-        response_class: Type[Response] = JSONResponse,
+        request_class: type[Request] = Default(Request),
+        response_model: type[Any] | None = None,
+        response_class: type[Response] = JSONResponse,
         # OpenAPI summary
-        summary: Optional[str] = None,
-        description: Optional[str] = None,
+        summary: str | None = None,
+        description: str | None = None,
         response_description: str = "Successful Response",
-        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
-        callbacks: Optional[List[BaseRoute]] = None,
+        responses: dict[int | str, dict[str, Any]] | None = None,
+        callbacks: list[BaseRoute] | None = None,
         # Sets the OpenAPI operationId to be used in your path operation
-        operation_id: Optional[str] = None,
+        operation_id: str | None = None,
         # If operation_id is None, this function will be used to create one.
         generate_unique_id_function: Callable[["APIRoute"], str] = Default(generate_unique_id),
         # OpenAPI tags
-        tags: Optional[List[Union[str, Enum]]] = None,
+        tags: list[str | Enum] | None = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
-        openapi_extra: Optional[Dict[str, Any]] = None,
+        openapi_extra: dict[str, Any] | None = None,
     ) -> None:
         return self.router.add_api_route(
             path=path,
@@ -296,28 +260,28 @@ class StarMallow(Starlette):
         self,
         path: str,
         *,
-        methods: Optional[Union[Set[str], List[str]]] = None,
-        name: str = None,
+        methods: set[str] | list[str] | None = None,
+        name: str | None = None,
         include_in_schema: bool = True,
-        status_code: Optional[int] = None,
+        status_code: int | None = None,
         middleware: Sequence[Middleware] | None = None,
-        request_class: Type[Request] = Default(Request),
-        response_model: Optional[Type[Any]] = None,
-        response_class: Type[Response] = JSONResponse,
+        request_class: type[Request] = Default(Request),
+        response_model: type[Any] | None = None,
+        response_class: type[Response] = JSONResponse,
         # OpenAPI summary
-        summary: Optional[str] = None,
-        description: Optional[str] = None,
+        summary: str | None = None,
+        description: str | None = None,
         response_description: str = "Successful Response",
-        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
-        callbacks: Optional[List[BaseRoute]] = None,
+        responses: dict[int | str, dict[str, Any]] | None = None,
+        callbacks: list[BaseRoute] | None = None,
         # Sets the OpenAPI operationId to be used in your path operation
-        operation_id: Optional[str] = None,
+        operation_id: str | None = None,
         # If operation_id is None, this function will be used to create one.
         generate_unique_id_function: Callable[["APIRoute"], str] = Default(generate_unique_id),
         # OpenAPI tags
-        tags: Optional[List[Union[str, Enum]]] = None,
+        tags: list[str | Enum] | None = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
-        openapi_extra: Optional[Dict[str, Any]] = None,
+        openapi_extra: dict[str, Any] | None = None,
     ) -> Callable[[DecoratedCallable], DecoratedCallable]:
         return self.router.api_route(
             path=path,
@@ -341,14 +305,14 @@ class StarMallow(Starlette):
         )
 
     def add_api_websocket_route(
-        self, path: str, endpoint: Callable[..., Any], name: Optional[str] = None,
+        self, path: str, endpoint: WebSocketEndpointCallable, name: str | None = None,
     ) -> None:
         self.router.add_api_websocket_route(path, endpoint, name=name)
 
     def websocket(
-        self, path: str, name: Optional[str] = None,
-    ) -> Callable[[DecoratedCallable], DecoratedCallable]:
-        def decorator(func: DecoratedCallable) -> DecoratedCallable:
+        self, path: str, name: str | None = None,
+    ) -> Callable[[WebSocketEndpointCallable], WebSocketEndpointCallable]:
+        def decorator(func: WebSocketEndpointCallable) -> WebSocketEndpointCallable:
             self.add_api_websocket_route(path, func, name=name)
             return func
 
@@ -359,13 +323,13 @@ class StarMallow(Starlette):
         router: APIRouter,
         *,
         prefix: str = "",
-        tags: Optional[List[Union[str, Enum]]] = None,
-        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
-        callbacks: Optional[List[BaseRoute]] = None,
-        deprecated: Optional[bool] = None,
+        tags: list[str | Enum] | None = None,
+        responses: dict[int | str, dict[str, Any]] | None = None,
+        callbacks: list[BaseRoute] | None = None,
+        deprecated: bool | None = None,
         include_in_schema: bool = True,
-        default_request_class: Type[Request] = Default(Request),
-        default_response_class: Type[Response] = Default(JSONResponse),
+        default_request_class: type[Request] = Default(Request),
+        default_response_class: type[Response] = Default(JSONResponse),
         generate_unique_id_function: Callable[[APIRoute], str] = Default(
             generate_unique_id,
         ),
@@ -387,27 +351,27 @@ class StarMallow(Starlette):
         self,
         path: str,
         *,
-        name: str = None,
+        name: str | None = None,
         include_in_schema: bool = True,
-        status_code: Optional[int] = None,
+        status_code: int | None = None,
         middleware: Sequence[Middleware] | None = None,
-        request_class: Type[Request] = Default(Request),
-        response_model: Optional[Type[Any]] = None,
-        response_class: Type[Response] = JSONResponse,
+        request_class: type[Request] = Default(Request),
+        response_model: type[Any] | None = None,
+        response_class: type[Response] = JSONResponse,
         # OpenAPI summary
-        summary: Optional[str] = None,
-        description: Optional[str] = None,
+        summary: str | None = None,
+        description: str | None = None,
         response_description: str = "Successful Response",
-        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
-        callbacks: Optional[List[BaseRoute]] = None,
+        responses: dict[int | str, dict[str, Any]] | None = None,
+        callbacks: list[BaseRoute] | None = None,
         # Sets the OpenAPI operationId to be used in your path operation
-        operation_id: Optional[str] = None,
+        operation_id: str | None = None,
         # If operation_id is None, this function will be used to create one.
         generate_unique_id_function: Callable[["APIRoute"], str] = Default(generate_unique_id),
         # OpenAPI tags
-        tags: Optional[List[Union[str, Enum]]] = None,
+        tags: list[str | Enum] | None = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
-        openapi_extra: Optional[Dict[str, Any]] = None,
+        openapi_extra: dict[str, Any] | None = None,
     ):
         return self.router.get(
             path,
@@ -433,27 +397,27 @@ class StarMallow(Starlette):
         self,
         path: str,
         *,
-        name: str = None,
+        name: str | None = None,
         include_in_schema: bool = True,
-        status_code: Optional[int] = None,
+        status_code: int | None = None,
         middleware: Sequence[Middleware] | None = None,
-        request_class: Type[Request] = Default(Request),
-        response_model: Optional[Type[Any]] = None,
-        response_class: Type[Response] = JSONResponse,
+        request_class: type[Request] = Default(Request),
+        response_model: type[Any] | None = None,
+        response_class: type[Response] = JSONResponse,
         # OpenAPI summary
-        summary: Optional[str] = None,
-        description: Optional[str] = None,
+        summary: str | None = None,
+        description: str | None = None,
         response_description: str = "Successful Response",
-        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
-        callbacks: Optional[List[BaseRoute]] = None,
+        responses: dict[int | str, dict[str, Any]] | None = None,
+        callbacks: list[BaseRoute] | None = None,
         # Sets the OpenAPI operationId to be used in your path operation
-        operation_id: Optional[str] = None,
+        operation_id: str | None = None,
         # If operation_id is None, this function will be used to create one.
         generate_unique_id_function: Callable[["APIRoute"], str] = Default(generate_unique_id),
         # OpenAPI tags
-        tags: Optional[List[Union[str, Enum]]] = None,
+        tags: list[str | Enum] | None = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
-        openapi_extra: Optional[Dict[str, Any]] = None,
+        openapi_extra: dict[str, Any] | None = None,
     ):
         return self.router.put(
             path,
@@ -479,27 +443,27 @@ class StarMallow(Starlette):
         self,
         path: str,
         *,
-        name: str = None,
+        name: str | None = None,
         include_in_schema: bool = True,
-        status_code: Optional[int] = None,
+        status_code: int | None = None,
         middleware: Sequence[Middleware] | None = None,
-        request_class: Type[Request] = Default(Request),
-        response_model: Optional[Type[Any]] = None,
-        response_class: Type[Response] = JSONResponse,
+        request_class: type[Request] = Default(Request),
+        response_model: type[Any] | None = None,
+        response_class: type[Response] = JSONResponse,
         # OpenAPI summary
-        summary: Optional[str] = None,
-        description: Optional[str] = None,
+        summary: str | None = None,
+        description: str | None = None,
         response_description: str = "Successful Response",
-        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
-        callbacks: Optional[List[BaseRoute]] = None,
+        responses: dict[int | str, dict[str, Any]] | None = None,
+        callbacks: list[BaseRoute] | None = None,
         # Sets the OpenAPI operationId to be used in your path operation
-        operation_id: Optional[str] = None,
+        operation_id: str | None = None,
         # If operation_id is None, this function will be used to create one.
         generate_unique_id_function: Callable[["APIRoute"], str] = Default(generate_unique_id),
         # OpenAPI tags
-        tags: Optional[List[Union[str, Enum]]] = None,
+        tags: list[str | Enum] | None = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
-        openapi_extra: Optional[Dict[str, Any]] = None,
+        openapi_extra: dict[str, Any] | None = None,
     ):
         return self.router.post(
             path,
@@ -525,27 +489,27 @@ class StarMallow(Starlette):
         self,
         path: str,
         *,
-        name: str = None,
+        name: str | None = None,
         include_in_schema: bool = True,
-        status_code: Optional[int] = None,
+        status_code: int | None = None,
         middleware: Sequence[Middleware] | None = None,
-        request_class: Type[Request] = Default(Request),
-        response_model: Optional[Type[Any]] = None,
-        response_class: Type[Response] = JSONResponse,
+        request_class: type[Request] = Default(Request),
+        response_model: type[Any] | None = None,
+        response_class: type[Response] = JSONResponse,
         # OpenAPI summary
-        summary: Optional[str] = None,
-        description: Optional[str] = None,
+        summary: str | None = None,
+        description: str | None = None,
         response_description: str = "Successful Response",
-        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
-        callbacks: Optional[List[BaseRoute]] = None,
+        responses: dict[int | str, dict[str, Any]] | None = None,
+        callbacks: list[BaseRoute] | None = None,
         # Sets the OpenAPI operationId to be used in your path operation
-        operation_id: Optional[str] = None,
+        operation_id: str | None = None,
         # If operation_id is None, this function will be used to create one.
         generate_unique_id_function: Callable[["APIRoute"], str] = Default(generate_unique_id),
         # OpenAPI tags
-        tags: Optional[List[Union[str, Enum]]] = None,
+        tags: list[str | Enum] | None = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
-        openapi_extra: Optional[Dict[str, Any]] = None,
+        openapi_extra: dict[str, Any] | None = None,
     ):
         return self.router.delete(
             path,
@@ -571,27 +535,27 @@ class StarMallow(Starlette):
         self,
         path: str,
         *,
-        name: str = None,
+        name: str | None = None,
         include_in_schema: bool = True,
-        status_code: Optional[int] = None,
+        status_code: int | None = None,
         middleware: Sequence[Middleware] | None = None,
-        request_class: Type[Request] = Default(Request),
-        response_model: Optional[Type[Any]] = None,
-        response_class: Type[Response] = JSONResponse,
+        request_class: type[Request] = Default(Request),
+        response_model: type[Any] | None = None,
+        response_class: type[Response] = JSONResponse,
         # OpenAPI summary
-        summary: Optional[str] = None,
-        description: Optional[str] = None,
+        summary: str | None = None,
+        description: str | None = None,
         response_description: str = "Successful Response",
-        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
-        callbacks: Optional[List[BaseRoute]] = None,
+        responses: dict[int | str, dict[str, Any]] | None = None,
+        callbacks: list[BaseRoute] | None = None,
         # Sets the OpenAPI operationId to be used in your path operation
-        operation_id: Optional[str] = None,
+        operation_id: str | None = None,
         # If operation_id is None, this function will be used to create one.
         generate_unique_id_function: Callable[["APIRoute"], str] = Default(generate_unique_id),
         # OpenAPI tags
-        tags: Optional[List[Union[str, Enum]]] = None,
+        tags: list[str | Enum] | None = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
-        openapi_extra: Optional[Dict[str, Any]] = None,
+        openapi_extra: dict[str, Any] | None = None,
     ):
         return self.router.options(
             path,
@@ -617,27 +581,27 @@ class StarMallow(Starlette):
         self,
         path: str,
         *,
-        name: str = None,
+        name: str | None = None,
         include_in_schema: bool = True,
-        status_code: Optional[int] = None,
+        status_code: int | None = None,
         middleware: Sequence[Middleware] | None = None,
-        request_class: Type[Request] = Default(Request),
-        response_model: Optional[Type[Any]] = None,
-        response_class: Type[Response] = JSONResponse,
+        request_class: type[Request] = Default(Request),
+        response_model: type[Any] | None = None,
+        response_class: type[Response] = JSONResponse,
         # OpenAPI summary
-        summary: Optional[str] = None,
-        description: Optional[str] = None,
+        summary: str | None = None,
+        description: str | None = None,
         response_description: str = "Successful Response",
-        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
-        callbacks: Optional[List[BaseRoute]] = None,
+        responses: dict[int | str, dict[str, Any]] | None = None,
+        callbacks: list[BaseRoute] | None = None,
         # Sets the OpenAPI operationId to be used in your path operation
-        operation_id: Optional[str] = None,
+        operation_id: str | None = None,
         # If operation_id is None, this function will be used to create one.
         generate_unique_id_function: Callable[["APIRoute"], str] = Default(generate_unique_id),
         # OpenAPI tags
-        tags: Optional[List[Union[str, Enum]]] = None,
+        tags: list[str | Enum] | None = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
-        openapi_extra: Optional[Dict[str, Any]] = None,
+        openapi_extra: dict[str, Any] | None = None,
     ):
         return self.router.head(
             path,
@@ -663,27 +627,27 @@ class StarMallow(Starlette):
         self,
         path: str,
         *,
-        name: str = None,
+        name: str | None = None,
         include_in_schema: bool = True,
-        status_code: Optional[int] = None,
+        status_code: int | None = None,
         middleware: Sequence[Middleware] | None = None,
-        request_class: Type[Request] = Default(Request),
-        response_model: Optional[Type[Any]] = None,
-        response_class: Type[Response] = JSONResponse,
+        request_class: type[Request] = Default(Request),
+        response_model: type[Any] | None = None,
+        response_class: type[Response] = JSONResponse,
         # OpenAPI summary
-        summary: Optional[str] = None,
-        description: Optional[str] = None,
+        summary: str | None = None,
+        description: str | None = None,
         response_description: str = "Successful Response",
-        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
-        callbacks: Optional[List[BaseRoute]] = None,
+        responses: dict[int | str, dict[str, Any]] | None = None,
+        callbacks: list[BaseRoute] | None = None,
         # Sets the OpenAPI operationId to be used in your path operation
-        operation_id: Optional[str] = None,
+        operation_id: str | None = None,
         # If operation_id is None, this function will be used to create one.
         generate_unique_id_function: Callable[["APIRoute"], str] = Default(generate_unique_id),
         # OpenAPI tags
-        tags: Optional[List[Union[str, Enum]]] = None,
+        tags: list[str | Enum] | None = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
-        openapi_extra: Optional[Dict[str, Any]] = None,
+        openapi_extra: dict[str, Any] | None = None,
     ):
         return self.router.patch(
             path,
@@ -709,27 +673,27 @@ class StarMallow(Starlette):
         self,
         path: str,
         *,
-        name: str = None,
+        name: str | None = None,
         include_in_schema: bool = True,
-        status_code: Optional[int] = None,
+        status_code: int | None = None,
         middleware: Sequence[Middleware] | None = None,
-        request_class: Type[Request] = Default(Request),
-        response_model: Optional[Type[Any]] = None,
-        response_class: Type[Response] = JSONResponse,
+        request_class: type[Request] = Default(Request),
+        response_model: type[Any] | None = None,
+        response_class: type[Response] = JSONResponse,
         # OpenAPI summary
-        summary: Optional[str] = None,
-        description: Optional[str] = None,
+        summary: str | None = None,
+        description: str | None = None,
         response_description: str = "Successful Response",
-        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
-        callbacks: Optional[List[BaseRoute]] = None,
+        responses: dict[int | str, dict[str, Any]] | None = None,
+        callbacks: list[BaseRoute] | None = None,
         # Sets the OpenAPI operationId to be used in your path operation
-        operation_id: Optional[str] = None,
+        operation_id: str | None = None,
         # If operation_id is None, this function will be used to create one.
         generate_unique_id_function: Callable[["APIRoute"], str] = Default(generate_unique_id),
         # OpenAPI tags
-        tags: Optional[List[Union[str, Enum]]] = None,
+        tags: list[str | Enum] | None = None,
         # Will be deeply merged with the automatically generated OpenAPI schema for the path operation.
-        openapi_extra: Optional[Dict[str, Any]] = None,
+        openapi_extra: dict[str, Any] | None = None,
     ):
         return self.router.trace(
             path,
@@ -752,9 +716,9 @@ class StarMallow(Starlette):
         )
 
     def websocket_route(
-        self, path: str, name: Union[str, None] = None,
-    ) -> Callable[[DecoratedCallable], DecoratedCallable]:
-        def decorator(func: DecoratedCallable) -> DecoratedCallable:
+        self, path: str, name: str | None = None,
+    ) -> Callable[[WebSocketEndpointCallable], WebSocketEndpointCallable]:
+        def decorator(func: WebSocketEndpointCallable) -> WebSocketEndpointCallable:
             self.router.add_api_websocket_route(path, func, name=name)
             return func
 
@@ -767,17 +731,17 @@ class StarMallow(Starlette):
 
     def middleware(
         self, middleware_type: str,
-    ) -> Callable[[DecoratedCallable], DecoratedCallable]:
-        def decorator(func: DecoratedCallable) -> DecoratedCallable:
+    ) -> Callable[[DispatchFunction], DispatchFunction]:
+        def decorator(func: DispatchFunction) -> DispatchFunction:
             self.add_middleware(BaseHTTPMiddleware, dispatch=func)
             return func
 
         return decorator
 
     def exception_handler(
-        self, exc_class_or_status_code: Union[int, Type[Exception]],
-    ) -> Callable[[DecoratedCallable], DecoratedCallable]:
-        def decorator(func: DecoratedCallable) -> DecoratedCallable:
+        self, exc_class_or_status_code: int | type[Exception],
+    ) -> Callable[[ExceptionHandler], ExceptionHandler]:
+        def decorator(func: ExceptionHandler) -> ExceptionHandler:
             self.add_exception_handler(exc_class_or_status_code, func)
             return func
 

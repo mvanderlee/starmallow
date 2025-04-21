@@ -1,7 +1,6 @@
 '''
     Tests various permutations of accepting input. i.e.: Path, Query, Body, etc
 '''
-from typing import List
 
 import pytest
 from marshmallow_dataclass2 import dataclass as ma_dataclass
@@ -25,7 +24,7 @@ class FieldBody:
     alpha: str = required_field(description="this field is required")
     beta: int = optional_field()
     charlie: bool = dump_only_field(default=True)
-    delta: List[str] = optional_field(default_factory=lambda: ['foobar'])
+    delta: list[str] = optional_field(default_factory=lambda: ['foobar'])
 # endregion
 
 
@@ -147,7 +146,7 @@ openapi_schema = {
 
 
 @pytest.mark.parametrize(
-    "path,expected_status,expected_response",
+    ("path", "expected_status", "expected_response"),
     [
         ("/openapi.json", 200, openapi_schema),
     ],
@@ -159,7 +158,7 @@ def test_get_path(path, expected_status, expected_response):
 
 
 @pytest.mark.parametrize(
-    "path,body,expected_status,expected_response",
+    ("path", "body", "expected_status", "expected_response"),
     [
         (
             "/dataclass_fields",

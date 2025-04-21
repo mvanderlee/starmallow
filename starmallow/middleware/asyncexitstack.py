@@ -1,5 +1,4 @@
 from contextlib import AsyncExitStack
-from typing import Optional
 
 from starlette.types import ASGIApp, Receive, Scope, Send
 
@@ -11,7 +10,7 @@ class AsyncExitStackMiddleware:
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if AsyncExitStack:
-            dependency_exception: Optional[Exception] = None
+            dependency_exception: Exception | None = None
             async with AsyncExitStack() as stack:
                 scope[self.context_name] = stack
                 try:

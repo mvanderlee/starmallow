@@ -1,5 +1,3 @@
-from typing import Optional
-
 from starlette.testclient import TestClient
 
 from starmallow import StarMallow
@@ -15,7 +13,7 @@ security = HTTPBase(scheme="Other", auto_error=False)
 
 @app.get("/users/me")
 def read_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Security(security),
+    credentials: HTTPAuthorizationCredentials | None = Security(security),
 ):
     if credentials is None:
         return {"msg": "Create an account first"}

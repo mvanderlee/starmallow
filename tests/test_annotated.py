@@ -1,6 +1,6 @@
 '''Test Resolved Params'''
 import datetime as dt
-from typing import Annotated, Literal, Optional, Union
+from typing import Annotated, Literal
 
 import marshmallow as ma
 import marshmallow.fields as mf
@@ -107,12 +107,12 @@ def post_multi_combo_optional(
     path_params: Annotated[MultiPathParams, Path()],
     query_params: Annotated[MultiQueryParams | None, Query()],
     body_params: Annotated[MultiBodyParams | None, Body()],
-    weight_unit: Annotated[Optional[Literal['lbs', 'kg']], Query(title='Weight')],
-    color: Annotated[Union[str, None], Header('blue')],
+    weight_unit: Annotated[Literal['lbs', 'kg'] | None, Query(title='Weight')],
+    color: Annotated[str | None, Header('blue')],
     # Tests convert_underscores
-    user_agent: Annotated[Optional[str], Header(None)],
+    user_agent: Annotated[str | None, Header(None)],
     # Tests aliasing
-    aliased_header: Annotated[Optional[str], Header(None, alias="myalias")],
+    aliased_header: Annotated[str | None, Header(None, alias="myalias")],
 ):
     return {
         'item_id': item_id,
@@ -337,7 +337,7 @@ openapi_schema = {
                         'required': False,
                         'schema': {
                             "default": None,
-                            'enum': ['lbs', 'kg'],
+                            'enum': ['lbs', 'kg', None],
                             "nullable": True,
                             'title': 'Weight',
                         },
@@ -460,7 +460,7 @@ openapi_schema = {
 
 
 @pytest.mark.parametrize(
-    "path,expected_status,expected_response",
+    ("path", "expected_status", "expected_response"),
     [
         ("/paging?limit=50", 200, {"offset": 0, "limit": 50}),
         ("/filtered_paging_1/name=foobar", 200, {"q": "name=foobar"}),
@@ -478,7 +478,7 @@ def test_get_path(path, expected_status, expected_response):
 
 
 @pytest.mark.parametrize(
-    "path,headers,body,expected_status,expected_response",
+    ("path", "headers", "body", "expected_status", "expected_response"),
     [
         (
             "/optional_with_default",

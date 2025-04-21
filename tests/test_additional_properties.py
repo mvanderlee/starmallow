@@ -1,5 +1,3 @@
-from typing import Dict
-
 from marshmallow_dataclass2 import dataclass as ma_dataclass
 from starlette.testclient import TestClient
 
@@ -12,7 +10,7 @@ app = StarMallow()
 
 @ma_dataclass
 class Items:
-    items: Dict[str, int]
+    items: dict[str, int]
 
 
 @app.post("/foo")

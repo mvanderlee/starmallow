@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Union
+from typing import Any
 
 from starlette.exceptions import HTTPException
 from starlette.status import HTTP_422_UNPROCESSABLE_ENTITY, HTTP_500_INTERNAL_SERVER_ERROR
@@ -7,7 +7,7 @@ from starlette.status import HTTP_422_UNPROCESSABLE_ENTITY, HTTP_500_INTERNAL_SE
 class RequestValidationError(HTTPException):
     def __init__(
         self,
-        errors: Dict[str, Union[Any, List, Dict]],
+        errors: dict[str, Any | list | dict],
     ) -> None:
         super().__init__(status_code=HTTP_422_UNPROCESSABLE_ENTITY)
         self.errors = errors
@@ -16,7 +16,7 @@ class RequestValidationError(HTTPException):
 class WebSocketRequestValidationError(HTTPException):
     def __init__(
         self,
-        errors: Dict[str, Union[Any, List, Dict]],
+        errors: dict[str, Any | list | dict],
     ) -> None:
         super().__init__(status_code=HTTP_422_UNPROCESSABLE_ENTITY)
         self.errors = errors
