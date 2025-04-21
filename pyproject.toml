@@ -38,7 +38,7 @@ classifiers = [
 dependencies = [
   "apispec[marshmallow] >=6,<7",
   "dpath >=2.1.0,<3",
-  "marshmallow >=3.18.0",
+  "marshmallow >=3.18.0,<4",
   "marshmallow-dataclass2 >=8.8.1,<9",
   "python-multipart >=0.0.20",
   "pyyaml >=5.4.1",
@@ -87,11 +87,11 @@ source = [
 ]
 
 [tool.ruff]
-exclude = [
+lint.exclude = [
     "*.ipynb",
     "examples/**/*.py",
 ]
-select = [
+lint.select = [
     "E",  # pycodestyle errors
     "W",  # pycodestyle warnings
     "F",  # pyflakes
@@ -111,7 +111,7 @@ select = [
     "T20",  # flake8-print
     "PT",  # flake8-pytest-style
 ]
-ignore = [
+lint.ignore = [
     "B008",  # do not perform function calls in argument defaults
     "B028",  # No explicit stacklevel argument found.
     "C901",  # too complex
