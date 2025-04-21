@@ -1,6 +1,6 @@
 import inspect
 import logging
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import (
     TYPE_CHECKING,
@@ -15,8 +15,8 @@ from typing import (
 import marshmallow as ma
 import marshmallow.fields as mf
 import typing_inspect
-from marshmallow.types import StrSequenceOrSet
-from marshmallow.utils import missing as missing_
+from marshmallow.constants import missing as missing_
+from marshmallow.types import StrSequenceOrSet, UnknownOption
 from marshmallow_dataclass2 import class_schema, is_generic_alias_of_dataclass
 from starlette.background import BackgroundTasks
 from starlette.requests import HTTPConnection, Request
@@ -159,11 +159,11 @@ class SchemaModel(ma.Schema):
 
     def load(
         self,
-        data: Mapping[str, Any] | Iterable[Mapping[str, Any]],
+        data: Mapping[str, Any] | Sequence[Mapping[str, Any]],
         *,
         many: bool | None = None,
         partial: bool | StrSequenceOrSet | None = None,
-        unknown: str | None = None,
+        unknown: UnknownOption | None = None,
     ) -> Any:
         if not data and self.load_default:
             return self.load_default
@@ -258,7 +258,10 @@ class EndpointMixin:
 
             model.required = kwargs['required']
             model.load_default = kwargs.get('load_default', ma.missing)
-            model.metadata.update(kwargs['metadata'])
+            model.metadata = {
+                **model.metadata,
+                **kwargs['metadata'],
+            }
 
             return model
 

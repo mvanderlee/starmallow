@@ -203,7 +203,7 @@ class OpenAPIConverter(ApiSpecOpenAPIConverter):
         ret = {}
 
         if isinstance(field, mf.Enum):
-            choices = [x.value for x in field.enum] if field.by_value else list(field.enum.__members__)
+            choices = [x.value for x in field.enum] if field.by_value else list(field.enum.__members__) # type: ignore
 
             if choices:
                 ret['enum'] = choices
