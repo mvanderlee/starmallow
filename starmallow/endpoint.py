@@ -242,7 +242,7 @@ class EndpointMixin:
             model = class_schema(model) # type: ignore
 
         mmf = getattr(model, '_marshmallow_field', None)
-        if isinstance(model, NewType) and mmf and issubclass(mmf, mf.Field):
+        if isinstance(model, NewType) and mmf and lenient_issubclass(mmf, mf.Field):
             return mmf(**kwargs)
         elif is_marshmallow_schema(model):
             return SchemaModel(model() if inspect.isclass(model) else model, **kwargs)

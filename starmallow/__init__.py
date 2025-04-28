@@ -1,4 +1,4 @@
-__version__ = "0.9.3"
+__version__ = "0.9.4"
 
 from .applications import StarMallow as StarMallow
 from .exceptions import RequestValidationError as RequestValidationError
